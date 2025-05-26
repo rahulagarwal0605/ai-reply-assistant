@@ -121,20 +121,6 @@ function updateTemperatureDescription(value) {
   }
 }
 
-// Load current site settings
-async function loadCurrentSiteSettings() {
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    const hostname = new URL(tab.url).hostname;
-    elements.siteName.textContent = hostname;
-
-    const { disabledSites = [] } = await chrome.storage.local.get('disabledSites');
-    elements.siteToggle.checked = !disabledSites.includes(hostname);
-  } catch (error) {
-    console.error('Error loading site settings:', error);
-  }
-}
-
 // Toggle site enablement
 async function toggleSiteEnablement() {
   try {

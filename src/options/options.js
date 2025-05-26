@@ -393,5 +393,4 @@ function updateTemperatureDescription(value) {
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
   init();
-  initializeTemperatureDescriptions();
 }); 

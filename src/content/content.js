@@ -1,7 +1,6 @@
 // Content script for AI Reply Assistant
 let currentInput = null;
 let suggestionsPopup = null;
-let debounceTimer = null;
 let isGenerating = false;
 let isEnabled = true;
 
@@ -157,184 +156,6 @@ const siteConfig = {
         }
     }
 };
-
-// Inject styles
-function injectStyles() {
-    const style = document.createElement('style');
-    style.textContent = `
-        .ai-reply-suggestions {
-            position: fixed;
-            background: #ffffff;
-            border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-            border: 1px solid rgba(0, 0, 0, 0.08);
-            z-index: 999999;
-            opacity: 0;
-            transform: translateY(10px);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            pointer-events: none;
-            max-height: 400px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .ai-reply-suggestions.visible {
-            opacity: 1;
-            transform: translateY(0);
-            pointer-events: auto;
-        }
-
-        .ai-reply-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 16px;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-            background: linear-gradient(to bottom, #fafafa, #f8f8f8);
-            flex-shrink: 0;
-        }
-
-        .ai-reply-title {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            font-size: 13px;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .ai-reply-status {
-            font-size: 11px;
-            font-weight: 500;
-            padding: 2px 8px;
-            border-radius: 12px;
-        }
-
-        .ai-reply-status.loading {
-            background: #fef3c7;
-            color: #92400e;
-        }
-
-        .ai-reply-status.ready {
-            background: #d1fae5;
-            color: #065f46;
-        }
-
-        .ai-reply-status.error {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .ai-reply-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 8px;
-            min-height: 0;
-            max-height: 300px;
-            background: #ffffff;
-        }
-
-        .ai-reply-item {
-            padding: 12px 14px;
-            margin: 4px 0;
-            background: #f9fafb;
-            border: 1px solid transparent;
-            border-radius: 8px;
-            cursor: pointer;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            font-size: 13px;
-            line-height: 1.5;
-            color: #000000 !important;
-            transition: all 0.2s ease;
-            position: relative;
-            z-index: 1;
-            opacity: 0;
-            transform: translateY(10px);
-        }
-
-        .ai-reply-item.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        .ai-reply-item:hover {
-            background: #e5e7eb;
-            border-color: #d1d5db;
-        }
-
-        .ai-reply-footer {
-            padding: 8px 16px;
-            border-top: 1px solid rgba(0, 0, 0, 0.06);
-            background: #f9fafb;
-            flex-shrink: 0;
-        }
-
-        .ai-reply-hint {
-            font-size: 11px;
-            color: #6b7280;
-        }
-
-        .ai-reply-error {
-            color: #991b1b;
-            padding: 12px;
-            text-align: center;
-        }
-
-        .ai-reply-empty {
-            color: #6b7280;
-            padding: 12px;
-            text-align: center;
-            font-size: 13px;
-        }
-
-        @media (prefers-color-scheme: dark) {
-            .ai-reply-suggestions {
-                background: #1f2937;
-                border-color: rgba(255, 255, 255, 0.1);
-            }
-
-            .ai-reply-header {
-                background: linear-gradient(to bottom, #1f2937, #111827);
-                border-bottom-color: rgba(255, 255, 255, 0.1);
-            }
-
-            .ai-reply-title {
-                color: #f3f4f6;
-            }
-
-            .ai-reply-list {
-                background: #1f2937;
-            }
-
-            .ai-reply-item {
-                background: #374151;
-                color: #ffffff !important;
-            }
-
-            .ai-reply-item:hover {
-                background: #4b5563;
-                border-color: #6b7280;
-            }
-
-            .ai-reply-footer {
-                background: #111827;
-                border-top-color: rgba(255, 255, 255, 0.1);
-            }
-
-            .ai-reply-hint {
-                color: #9ca3af;
-            }
-
-            .ai-reply-error {
-                color: #fecaca;
-            }
-
-            .ai-reply-empty {
-                color: #9ca3af;
-            }
-        }
-    `;
-    document.head.appendChild(style);
-}
 
 // Handle text insertion based on hostname
 function insertText(text) {
@@ -540,7 +361,6 @@ async function initialize() {
     isEnabled = !disabledSites.includes(hostname);
 
     if (isEnabled) {
-        injectStyles();
         detectInputFields();
         
         setInterval(detectInputFields, 2000);
@@ -563,7 +383,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         
         if (isEnabled) {
             // Enable extension
-            injectStyles();
             detectInputFields();
         } else {
             // Disable extension
