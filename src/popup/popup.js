@@ -30,40 +30,79 @@ let currentHostname = null;
 
 // Initialize popup
 async function init() {
-  // Check configuration status
+  console.log('Popup init started (v2 logic)'); 
   const isConfigured = await storage.isConfigured();
   updateStatus(isConfigured);
   
-  // Get current tab
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   currentTab = tab;
+  console.log('Current tab (v2 logic):', currentTab);
   
-  if (tab.url) {
+  if (tab && tab.url) {
+    console.log('Tab URL found (v2 logic):', tab.url);
     try {
       const url = new URL(tab.url);
       currentHostname = url.hostname;
       elements.siteName.textContent = currentHostname;
+      console.log('Hostname extracted (v2 logic):', currentHostname);
       
-      // Load current style for site
-      const style = await storage.getStyleForSite(currentHostname);
-      elements.toneSelect.value = style.tone || 'professional';
-      elements.temperatureInput.value = style.temperature || '0.7';
-      elements.temperatureValue.textContent = style.temperature || '0.7';
-      updateTemperatureDescription(style.temperature || '0.7');
+      let style = await storage.getStyleForSite(currentHostname);
+      
+      if (!style || typeof style.temperature === 'undefined' || typeof style.tone === 'undefined' || typeof style.formality === 'undefined') {
+        console.log('Style or its properties undefined, applying defaults (v2 logic). Initial site style:', JSON.stringify(style));
+        const defaultConfig = await storage.getConfig();
+        const globalDefaultStyleFromConfig = defaultConfig?.styles?.default;
+        console.log('Global default style from config (v2 logic):', JSON.stringify(globalDefaultStyleFromConfig));
 
-      // Load disabled sites and set toggle state
-      const { disabledSites = [] } = await chrome.storage.local.get('disabledSites');
+        let finalTone = storage.DEFAULT_FALLBACK_STYLE.tone;
+        let finalTemp = storage.DEFAULT_FALLBACK_STYLE.temperature;
+        let finalFormality = storage.DEFAULT_FALLBACK_STYLE.formality;
+
+        if (globalDefaultStyleFromConfig) {
+            finalTone = globalDefaultStyleFromConfig.tone !== undefined ? globalDefaultStyleFromConfig.tone : finalTone;
+            finalTemp = globalDefaultStyleFromConfig.temperature !== undefined ? globalDefaultStyleFromConfig.temperature : finalTemp;
+            finalFormality = globalDefaultStyleFromConfig.formality !== undefined ? globalDefaultStyleFromConfig.formality : finalFormality;
+        }
+        
+        if (style) { 
+            style.tone = style.tone !== undefined ? style.tone : finalTone;
+            style.temperature = style.temperature !== undefined ? style.temperature : finalTemp;
+            style.formality = style.formality !== undefined ? style.formality : finalFormality;
+        } else { 
+            style = {
+                tone: finalTone,
+                temperature: finalTemp,
+                formality: finalFormality
+            };
+        }
+        console.log('Final resolved style (v2 logic):', JSON.stringify(style));
+      }
+
+      elements.toneSelect.value = style.tone;
+      elements.temperatureInput.value = Number(style.temperature);
+      elements.temperatureValue.textContent = Number(style.temperature).toFixed(1);
+      updateTemperatureDescription(String(style.temperature));
+
+      const disabledSites = await storage.getDisabledSites();
       elements.siteToggle.checked = !disabledSites.includes(currentHostname);
+      elements.siteSection.style.display = 'block'; // Explicitly show if successful
+      console.log('Site section displayed (v2 logic)');
+
     } catch (e) {
-      elements.siteName.textContent = 'Invalid URL';
+      console.error('Error processing tab URL in init (v2 logic):', e, e.stack);
+      elements.siteName.textContent = 'N/A';
+      elements.siteSection.style.display = 'none';
+      console.log('Site section hidden due to URL processing error (v2 logic)');
     }
+  } else {
+    elements.siteName.textContent = 'N/A';
+    elements.siteSection.style.display = 'none';
+    console.log('Site section hidden due to no tab or no tab.url (v2 logic)');
   }
   
-  // Load stats
   await loadStats();
-  
-  // Setup event listeners
   setupEventListeners();
+  console.log('Popup init finished (v2 logic)');
 }
 
 // Update status display
@@ -121,38 +160,23 @@ function updateTemperatureDescription(value) {
   }
 }
 
-// Load current site settings
-async function loadCurrentSiteSettings() {
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    const hostname = new URL(tab.url).hostname;
-    elements.siteName.textContent = hostname;
-
-    const { disabledSites = [] } = await chrome.storage.local.get('disabledSites');
-    elements.siteToggle.checked = !disabledSites.includes(hostname);
-  } catch (error) {
-    console.error('Error loading site settings:', error);
-  }
-}
-
 // Toggle site enablement
 async function toggleSiteEnablement() {
+  if (!currentHostname) return;
+  
   try {
-    if (!currentHostname) return;
-    
-    const { disabledSites = [] } = await chrome.storage.local.get('disabledSites');
+    let disabledSites = await storage.getDisabledSites();
     
     if (elements.siteToggle.checked) {
       // Enable site
-      const newDisabledSites = disabledSites.filter(site => site !== currentHostname);
-      await chrome.storage.local.set({ disabledSites: newDisabledSites });
+      disabledSites = disabledSites.filter(site => site !== currentHostname);
     } else {
       // Disable site
       if (!disabledSites.includes(currentHostname)) {
         disabledSites.push(currentHostname);
-        await chrome.storage.local.set({ disabledSites });
       }
     }
+    await storage.setDisabledSites(disabledSites);
 
     // Notify content script
     if (currentTab?.id) {
@@ -163,8 +187,9 @@ async function toggleSiteEnablement() {
     }
   } catch (error) {
     console.error('Error toggling site:', error);
-    // Revert toggle state on error
-    elements.siteToggle.checked = !elements.siteToggle.checked;
+    // Revert toggle state on error by re-reading from storage
+    const originalDisabledSites = await storage.getDisabledSites();
+    elements.siteToggle.checked = !originalDisabledSites.includes(currentHostname);
   }
 }
 
@@ -188,18 +213,20 @@ function setupEventListeners() {
   
   // Temperature slider
   elements.temperatureInput.addEventListener('input', (e) => {
-    elements.temperatureValue.textContent = e.target.value;
-    updateTemperatureDescription(e.target.value);
+    const tempValue = parseFloat(e.target.value).toFixed(1);
+    elements.temperatureValue.textContent = tempValue;
+    updateTemperatureDescription(tempValue);
   });
   
   // Save style button
   elements.saveStyleBtn.addEventListener('click', async () => {
-    const style = {
+    const styleToSave = {
       tone: elements.toneSelect.value,
-      temperature: elements.temperatureInput.value
+      temperature: parseFloat(elements.temperatureInput.value),
+      formality: (await storage.getStyleForSite(currentHostname))?.formality || storage.DEFAULT_FALLBACK_STYLE.formality 
     };
     
-    await storage.setStyleForSite(currentHostname, style);
+    await storage.setStyleForSite(currentHostname, styleToSave);
     elements.styleEditor.style.display = 'none';
     elements.editStyleBtn.style.display = 'block';
     
@@ -212,12 +239,42 @@ function setupEventListeners() {
   
   // Cancel style button
   elements.cancelStyleBtn.addEventListener('click', async () => {
-    // Reset to original values
-    const style = await storage.getStyleForSite(currentHostname);
-    elements.toneSelect.value = style.tone || 'professional';
-    elements.temperatureInput.value = style.temperature || '0.7';
-    elements.temperatureValue.textContent = style.temperature || '0.7';
-    updateTemperatureDescription(style.temperature || '0.7');
+    let style = await storage.getStyleForSite(currentHostname);
+    console.log('Cancel button: Initial site style (v2 logic):', JSON.stringify(style));
+
+    if (!style || typeof style.temperature === 'undefined' || typeof style.tone === 'undefined' || typeof style.formality === 'undefined') {
+        const defaultConfig = await storage.getConfig(); 
+        const globalDefaultStyleFromConfig = defaultConfig?.styles?.default;
+        console.log('Cancel button: Global default style from config (v2 logic):', JSON.stringify(globalDefaultStyleFromConfig));
+
+        let finalTone = storage.DEFAULT_FALLBACK_STYLE.tone;
+        let finalTemp = storage.DEFAULT_FALLBACK_STYLE.temperature;
+        let finalFormality = storage.DEFAULT_FALLBACK_STYLE.formality;
+
+        if (globalDefaultStyleFromConfig) {
+            finalTone = globalDefaultStyleFromConfig.tone !== undefined ? globalDefaultStyleFromConfig.tone : finalTone;
+            finalTemp = globalDefaultStyleFromConfig.temperature !== undefined ? globalDefaultStyleFromConfig.temperature : finalTemp;
+            finalFormality = globalDefaultStyleFromConfig.formality !== undefined ? globalDefaultStyleFromConfig.formality : finalFormality;
+        }
+
+        if (style) { 
+            style.tone = style.tone !== undefined ? style.tone : finalTone;
+            style.temperature = style.temperature !== undefined ? style.temperature : finalTemp;
+            style.formality = style.formality !== undefined ? style.formality : finalFormality;
+        } else {
+            style = {
+                tone: finalTone,
+                temperature: finalTemp,
+                formality: finalFormality
+            };
+        }
+        console.log('Cancel button: Final resolved style (v2 logic):', JSON.stringify(style));
+    }
+
+    elements.toneSelect.value = style.tone;
+    elements.temperatureInput.value = Number(style.temperature);
+    elements.temperatureValue.textContent = Number(style.temperature).toFixed(1);
+    updateTemperatureDescription(String(style.temperature));
     
     elements.styleEditor.style.display = 'none';
     elements.editStyleBtn.style.display = 'block';

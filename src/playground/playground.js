@@ -1,3 +1,5 @@
+import { SuggestionsPopup } from '../content/suggestions-popup.js';
+
 // Playground script
 const elements = {
   scenarioSelect: document.getElementById('scenarioSelect'),
@@ -11,7 +13,8 @@ const elements = {
   emojiPicker: document.getElementById('emojiPicker'),
   extensionState: document.getElementById('extensionState'),
   apiState: document.getElementById('apiState'),
-  settingsLink: document.getElementById('settingsLink')
+  settingsLink: document.getElementById('settingsLink'),
+  autoSuggestCheckbox: document.getElementById('autoSuggest')
 };
 
 // Scenario data
@@ -65,158 +68,74 @@ const scenarios = {
 let currentMessages = [];
 let suggestionsPopup = null;
 let debounceTimer = null;
-let isGenerating = false;
 
 // Initialize
 function init() {
+  suggestionsPopup = new SuggestionsPopup();
   checkExtensionStatus();
   setupEventListeners();
   updateCharCount();
-  createSuggestionsPopup();
+  loadScenario();
 }
 
-// Create suggestions popup (similar to content script)
-function createSuggestionsPopup() {
-  const popup = document.createElement('div');
-  popup.className = 'ai-reply-suggestions';
-  popup.innerHTML = `
-    <div class="ai-reply-header">
-      <span class="ai-reply-title">AI Suggestions</span>
-      <span class="ai-reply-status"></span>
-    </div>
-    <div class="ai-reply-list"></div>
-    <div class="ai-reply-footer">
-      <span class="ai-reply-hint">Press Esc to hide • Ctrl+Space to regenerate</span>
-    </div>
-  `;
-  popup.style.display = 'none';
-  document.body.appendChild(popup);
-  suggestionsPopup = popup;
-}
-
-// Show suggestions popup
-function showSuggestionsPopup() {
-  if (!suggestionsPopup || !elements.chatInput) return;
-  
-  const rect = elements.chatInput.getBoundingClientRect();
-  
-  // Position popup above input
-  suggestionsPopup.style.position = 'fixed';
-  suggestionsPopup.style.bottom = `${window.innerHeight - rect.top + 5}px`;
-  suggestionsPopup.style.left = `${rect.left}px`;
-  suggestionsPopup.style.width = `${Math.min(rect.width, 400)}px`;
-  suggestionsPopup.style.display = 'block';
-  suggestionsPopup.classList.add('visible');
-}
-
-// Hide suggestions popup
-function hideSuggestionsPopup() {
-  if (suggestionsPopup) {
-    suggestionsPopup.classList.remove('visible');
-    setTimeout(() => {
-      suggestionsPopup.style.display = 'none';
-    }, 300);
+async function playgroundGenerateFn() {
+  if (!suggestionsPopup || !suggestionsPopup.currentInputElement) {
+    throw new Error('Playground: Input element not available for suggestions.');
   }
-}
+  const currentInputText = suggestionsPopup.currentInputElement.value;
+  const context = currentMessages.map(msg => ({
+    sender: msg.sender === 'you' ? 'You' : 'Other',
+    text: msg.text
+  }));
 
-// Generate suggestions
-async function generateSuggestions() {
-  if (isGenerating || !suggestionsPopup) return;
-  
-  isGenerating = true;
-  const statusEl = suggestionsPopup.querySelector('.ai-reply-status');
-  const listEl = suggestionsPopup.querySelector('.ai-reply-list');
-  
-  statusEl.textContent = 'Generating...';
-  statusEl.className = 'ai-reply-status loading';
-  
-  try {
-    // Prepare context for API
-    const context = currentMessages.map(msg => ({
-      sender: msg.sender === 'you' ? 'You' : 'Other',
-      text: msg.text
-    }));
-    
-    const response = await chrome.runtime.sendMessage({
-      action: 'generateReplies',
-      currentInput: elements.chatInput.value,
-      hostname: 'playground.test',
-      context: context,
-      scenario: elements.scenarioSelect.value
-    });
-    
-    if (response.error) {
-      throw new Error(response.error);
-    }
-    
-    displaySuggestions(response.replies || []);
-    statusEl.textContent = 'Ready';
-    statusEl.className = 'ai-reply-status ready';
-  } catch (error) {
-    console.error('Error generating suggestions:', error);
-    statusEl.textContent = error.message.includes('not configured') ? 'Not configured' : 'Error';
-    statusEl.className = 'ai-reply-status error';
-    listEl.innerHTML = '<div class="ai-reply-error">Please configure the extension in settings</div>';
-  } finally {
-    isGenerating = false;
-  }
-}
+  // Fetch style from storage for playground.test (or a default)
+  // This part depends on how styles are meant to be handled in the playground.
+  // For simplicity, we can use a default style or try to fetch for 'playground.test'.
+  // Let's assume we want the playground to reflect some default or configured style.
+  // We will need to import `storage` for this.
+  // For now, let's mock a style object. In a real scenario, you might fetch it.
+  const style = { tone: 'friendly', temperature: 0.7, formality: 'default' }; // Example style
 
-// Display suggestions
-function displaySuggestions(suggestions) {
-  const listEl = suggestionsPopup.querySelector('.ai-reply-list');
-  listEl.innerHTML = '';
-  
-  if (suggestions.length === 0) {
-    listEl.innerHTML = '<div class="ai-reply-empty">No suggestions available</div>';
-    return;
-  }
-  
-  suggestions.forEach((suggestion, index) => {
-    const item = document.createElement('div');
-    item.className = 'ai-reply-item';
-    item.textContent = suggestion;
-    item.tabIndex = 0;
-    
-    item.addEventListener('click', () => insertSuggestion(suggestion));
-    item.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') insertSuggestion(suggestion);
-    });
-    
-    listEl.appendChild(item);
-    
-    // Animate in
-    setTimeout(() => item.classList.add('visible'), index * 50);
+  const response = await chrome.runtime.sendMessage({
+    action: 'generateReplies',
+    currentInput: currentInputText,
+    hostname: 'playground.test', // Hardcoded for playground
+    context: context,
+    scenario: elements.scenarioSelect.value, // Playground specific
+    style: style // Pass the determined style
   });
+
+  if (response.error) {
+    // Check for common errors to provide better messages
+    if (response.error.includes('API key') || response.error.includes('configured')) {
+      throw new Error('API not configured. Please check extension settings.');
+    }
+    throw new Error(response.error);
+  }
+  return response.replies || [];
 }
 
-// Insert suggestion
-function insertSuggestion(suggestion) {
-  elements.chatInput.value = suggestion;
+function playgroundInsertSuggestionCallback(suggestionText) {
+  elements.chatInput.value = suggestionText;
   elements.chatInput.focus();
   updateCharCount();
-  hideSuggestionsPopup();
+  // The popup's display method (which calls this callback) will hide the popup.
 }
 
 // Check extension status
 async function checkExtensionStatus() {
   try {
-    // Try to communicate with the extension
     const response = await chrome.runtime.sendMessage({ action: 'getConfig' });
-    
     if (response && response.config) {
       elements.extensionState.textContent = 'Active';
       elements.extensionState.className = 'status-value active';
-      
-      if (response.config.isConfigured) {
-        elements.apiState.textContent = 'Configured';
-        elements.apiState.className = 'status-value active';
-      } else {
-        elements.apiState.textContent = 'Not Configured';
-        elements.apiState.className = 'status-value inactive';
-      }
+      elements.apiState.textContent = response.config.isConfigured ? 'Configured' : 'Not Configured';
+      elements.apiState.className = response.config.isConfigured ? 'status-value active' : 'status-value inactive';
+    } else {
+      throw new Error('No response or config from extension');
     }
   } catch (error) {
+    console.warn('Playground: Could not get extension status:', error.message);
     elements.extensionState.textContent = 'Not Detected';
     elements.extensionState.className = 'status-value inactive';
     elements.apiState.textContent = 'N/A';
@@ -230,7 +149,7 @@ function setupEventListeners() {
   elements.scenarioSelect.addEventListener('change', loadScenario);
   
   // Clear chat
-  elements.clearChatBtn.addEventListener('click', clearChat);
+  elements.clearChatBtn.addEventListener('click', () => clearChat(true));
   
   // Send message
   elements.sendBtn.addEventListener('click', sendMessage);
@@ -239,52 +158,53 @@ function setupEventListeners() {
       e.preventDefault();
       sendMessage();
     }
-    // Handle Ctrl+Space for regenerating suggestions
-    if (e.ctrlKey && e.key === ' ') {
+    if (e.ctrlKey && e.key === ' ') { // Ctrl+Space
       e.preventDefault();
-      showSuggestionsPopup();
-      generateSuggestions();
+      if (suggestionsPopup) {
+        suggestionsPopup.show(elements.chatInput);
+        suggestionsPopup.generateSuggestions(playgroundGenerateFn, playgroundInsertSuggestionCallback);
+      }
     }
-    // Handle Escape key to hide suggestions
-    if (e.key === 'Escape') {
-      hideSuggestionsPopup();
-    }
+    // Escape key is handled by the SuggestionsPopup class globally now
   });
   
   // Character count and input changes
   elements.chatInput.addEventListener('input', () => {
     updateCharCount();
     
-    // Show suggestions on input with debounce
     clearTimeout(debounceTimer);
     
     if (elements.chatInput.value.trim()) {
-      showSuggestionsPopup();
-      debounceTimer = setTimeout(() => {
-        if (!isGenerating && document.getElementById('autoSuggest').checked) {
-          generateSuggestions();
+      if (elements.autoSuggestCheckbox.checked) {
+        if (suggestionsPopup) {
+          suggestionsPopup.show(elements.chatInput);
+          debounceTimer = setTimeout(() => {
+            suggestionsPopup.generateSuggestions(playgroundGenerateFn, playgroundInsertSuggestionCallback);
+          }, 500);
         }
-      }, 500);
+      }
     } else {
-      hideSuggestionsPopup();
+      if (suggestionsPopup) {
+        suggestionsPopup.hide();
+      }
     }
   });
   
   // Focus/blur events for suggestions
   elements.chatInput.addEventListener('focus', () => {
-    if (elements.chatInput.value.trim()) {
-      showSuggestionsPopup();
-      if (!isGenerating && document.getElementById('autoSuggest').checked) {
-        generateSuggestions();
+    if (elements.chatInput.value.trim() && elements.autoSuggestCheckbox.checked) {
+      if (suggestionsPopup) {
+        suggestionsPopup.show(elements.chatInput);
+        suggestionsPopup.generateSuggestions(playgroundGenerateFn, playgroundInsertSuggestionCallback);
       }
     }
   });
   
-  elements.chatInput.addEventListener('blur', (e) => {
-    // Delay to allow clicking on suggestions
+  elements.chatInput.addEventListener('blur', () => {
     setTimeout(() => {
-      if (!suggestionsPopup?.contains(document.activeElement)) {
-        hideSuggestionsPopup();
+      if (suggestionsPopup && suggestionsPopup.popupElement && 
+          !suggestionsPopup.popupElement.contains(document.activeElement)) {
+        suggestionsPopup.hide();
       }
     }, 200);
   });
@@ -297,7 +217,9 @@ function setupEventListeners() {
   
   // Click outside to close emoji picker
   document.addEventListener('click', (e) => {
-    if (!elements.emojiBtn.contains(e.target) && !elements.emojiPicker.contains(e.target)) {
+    if (elements.emojiPicker.style.display === 'block' && 
+        !elements.emojiBtn.contains(e.target) && 
+        !elements.emojiPicker.contains(e.target)) {
       elements.emojiPicker.style.display = 'none';
     }
   });
@@ -330,8 +252,10 @@ function loadScenario() {
     scenario.messages.forEach((msg, index) => {
       setTimeout(() => {
         addMessage(msg.text, msg.sender === 'you');
-      }, index * 300);
+      }, index * (document.getElementById('animateMessages').checked ? 300 : 0));
     });
+  } else {
+    currentMessages = []; // Ensure custom scenario starts fresh
   }
 }
 
@@ -348,6 +272,9 @@ function clearChat(showWelcome = true) {
         <p class="hint">💡 The AI assistant will suggest replies as you type in the input field below.</p>
       </div>
     `;
+  }
+  if (suggestionsPopup) {
+    suggestionsPopup.hide(); // Hide popup when chat is cleared
   }
 }
 
@@ -387,6 +314,12 @@ function addMessage(text, isSent = false) {
     sender: isSent ? 'you' : 'other',
     text: text
   });
+  
+  // Limit context to last N messages to avoid overly large context
+  const MAX_CONTEXT_MESSAGES = 20;
+  if (currentMessages.length > MAX_CONTEXT_MESSAGES) {
+    currentMessages = currentMessages.slice(-MAX_CONTEXT_MESSAGES);
+  }
 }
 
 // Send message
@@ -397,13 +330,15 @@ function sendMessage() {
   addMessage(text, true);
   elements.chatInput.value = '';
   updateCharCount();
-  hideSuggestionsPopup();
+  if (suggestionsPopup) {
+    suggestionsPopup.hide();
+  }
   
   // Simulate response after delay
   if (elements.scenarioSelect.value !== 'custom') {
     setTimeout(() => {
       simulateResponse();
-    }, 1000 + Math.random() * 2000);
+    }, 1000 + Math.random() * 1000);
   }
 }
 
