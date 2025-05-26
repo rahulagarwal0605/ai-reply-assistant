@@ -211,10 +211,16 @@ function detectInputFields() {
         input.dataset.aireplyHostname = window.location.hostname;
 
         const showPopupForInput = async (eventTargetInput) => {
-            if (!isEnabled) return;
+            if (!isEnabled) {
+                return;
+            }
             lastFocusedInput = eventTargetInput;
-            suggestionsPopup.show(eventTargetInput);
-            suggestionsPopup.generateSuggestions(actualGenerateSuggestions, actualInsertSuggestion);
+            try {
+                suggestionsPopup.show(eventTargetInput);
+                await suggestionsPopup.generateSuggestions(actualGenerateSuggestions, actualInsertSuggestion);
+            } catch (error) {
+                console.error('Error in showPopupForInput:', error);
+            }
         };
 
         input.addEventListener('focus', (event) => {
@@ -226,7 +232,7 @@ function detectInputFields() {
             if (!isEnabled) return;
             
             const eventTargetInput = event.target;
-            showPopupForInput(eventTargetInput); // Show popup immediately on input
+            showPopupForInput(eventTargetInput);
 
             debounceTimer = setTimeout(async () => {
                 if (isEnabled && suggestionsPopup.currentInputElement === eventTargetInput) {
@@ -250,7 +256,6 @@ async function initialize() {
     isEnabled = !disabledSites.includes(window.location.hostname);
 
     if (!isEnabled) {
-        console.log('AI Reply Assistant disabled for this site.');
         if (suggestionsPopup) suggestionsPopup.setEnabled(false);
         return;
     }
@@ -258,11 +263,24 @@ async function initialize() {
     detectInputFields();
 
     const observer = new MutationObserver((mutationsList) => {
+        let foundNewInput = false;
         for(let mutation of mutationsList) {
             if (mutation.type === 'childList' || mutation.type === 'subtree') {
-                detectInputFields();
-                break; 
+                if (mutation.addedNodes && mutation.addedNodes.length > 0) {
+                    mutation.addedNodes.forEach(node => {
+                        if (node.nodeType === Node.ELEMENT_NODE) {
+                            if (node.matches('textarea, input[type="text"], input[type="search"], [contenteditable="true"]')) {
+                                foundNewInput = true;
+                            } else if (node.querySelector('textarea, input[type="text"], input[type="search"], [contenteditable="true"]')) {
+                                foundNewInput = true;
+                            }
+                        }
+                    });
+                }
             }
+        }
+        if (foundNewInput) {
+            detectInputFields();
         }
     });
     observer.observe(document.body, { childList: true, subtree: true });
@@ -278,7 +296,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     suggestionsPopup.hide();
                 }
             }
-            console.log(`AI Reply Assistant ${isEnabled ? 'enabled' : 'disabled'} for this site.`);
             sendResponse({status: "done"}); 
         } else if (request.action === 'regenerateSuggestions') {
             if (!isEnabled) {

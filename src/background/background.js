@@ -17,10 +17,14 @@ function getIconPaths(status) {
 
 // Update extension icon based on configuration status
 async function updateIcon() {
-  const isConfigured = await storage.isConfigured();
-  chrome.action.setIcon({
-    path: getIconPaths(isConfigured)
-  });
+  try {
+    const isConfigured = await storage.isConfigured();
+    await chrome.action.setIcon({
+      path: getIconPaths(isConfigured)
+    });
+  } catch (error) {
+    console.error("Error updating icon:", error);
+  }
 }
 
 const SCENARIO_STYLES = {
@@ -161,7 +165,6 @@ chrome.runtime.onInstalled.addListener(async () => {
       formality: config.styles.default?.formality ?? fallback.formality,
       temperature: config.styles.default?.temperature ?? fallback.temperature
     };
-    console.log('Background: Default style was missing or incomplete, ensured default style:', JSON.stringify(config.styles.default));
     await storage.setConfig(config);
   }
 

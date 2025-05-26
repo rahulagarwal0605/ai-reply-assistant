@@ -40,12 +40,12 @@
     {
       "resources": [
         "src/content/content.js",
-        "src/content/test-module.js",
         "src/content/suggestions-popup.js",
         "src/utils/storage.js",
         "src/utils/api-client.js",
         "src/utils/llm-providers.js",
-        "src/styles/content.css"
+        "src/styles/content.css",
+        "src/assets/icons/*.png"
       ],
       "matches": ["<all_urls>"]
     }
