@@ -207,6 +207,38 @@ function extractConversationContext() {
       sender: (el) => el.classList.contains('message-out') ? 'You' : 'Other',
       text: '.selectable-text'
     },
+    'www.jeevansathi.com': {
+      extract: () => {
+        // Let's grab all message containers in order to maintain sequence
+        const messageContainers = [...document.querySelectorAll('div.flex.flex-col')];
+        
+        const combined = [];
+        
+        messageContainers.forEach(container => {
+          // Right side message (you)
+          const rightMsg = container.querySelector('div.mt-3\\.5.ml-auto');
+          if (rightMsg) {
+            const text = rightMsg.innerText.trim();
+            // Skip system messages
+            if (!text.includes('You sent interest') && !text.includes('They accepted your interest')) {
+              combined.push({ sender: 'You', text });
+            }
+          }
+          
+          // Left side message (other)
+          const leftMsg = container.querySelector('div.flex.space-x-2 > div.mt-3\\.5:not(.ml-auto)');
+          if (leftMsg) {
+            const text = leftMsg.innerText.trim();
+            // Skip system messages
+            if (!text.includes('You sent interest') && !text.includes('They accepted your interest')) {
+              combined.push({ sender: 'Other', text });
+            }
+          }
+        });
+        
+        return combined;
+      }
+    },
     'slack.com': {
       messages: '.c-message_kit__message',
       sender: '.c-message__sender',
@@ -226,29 +258,40 @@ function extractConversationContext() {
   };
   
   const config = selectors[hostname] || selectors.default;
-  const messages = document.querySelectorAll(config.messages);
   
-  messages.forEach(msg => {
-    try {
-      let sender, text;
-      
-      if (typeof config.sender === 'function') {
-        sender = config.sender(msg);
-      } else {
-        const senderEl = msg.querySelector(config.sender);
-        sender = senderEl?.textContent?.trim() || 'Unknown';
+  if (hostname === 'www.jeevansathi.com') {
+    // Use the custom extractor for Jeevansathi
+    context.push(...config.extract());
+  } else {
+    // Use the standard selector-based approach for other platforms
+    const messages = document.querySelectorAll(config.messages);
+    
+    messages.forEach(msg => {
+      try {
+        let sender, text;
+        
+        if (typeof config.sender === 'function') {
+          sender = config.sender(msg);
+        } else {
+          const senderEl = msg.querySelector(config.sender);
+          sender = senderEl?.textContent?.trim() || 'Unknown';
+        }
+        
+        if (typeof config.text === 'function') {
+          text = config.text(msg);
+        } else {
+          const textEl = msg.querySelector(config.text) || msg;
+          text = textEl.textContent?.trim();
+        }
+        
+        if (text) {
+          context.push({ sender, text });
+        }
+      } catch (e) {
+        console.error('Error extracting message:', e);
       }
-      
-      const textEl = msg.querySelector(config.text) || msg;
-      text = textEl.textContent?.trim();
-      
-      if (text) {
-        context.push({ sender, text });
-      }
-    } catch (e) {
-      console.error('Error extracting message:', e);
-    }
-  });
+    });
+  }
   
   // Update context in background
   chrome.runtime.sendMessage({
