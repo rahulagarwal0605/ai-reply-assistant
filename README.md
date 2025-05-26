@@ -18,7 +18,7 @@ An intelligent browser extension that suggests contextual replies for your conve
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/ai-reply-assistant.git
+   git clone https://github.com/rahulagarwal0605/ai-reply-assistant.git
    cd ai-reply-assistant
    ```
 
