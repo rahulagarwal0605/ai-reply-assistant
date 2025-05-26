@@ -1,29 +1,28 @@
+import { storage } from '../utils/storage.js';
+import { SuggestionsPopup } from './suggestions-popup.js';
+
 // Content script for AI Reply Assistant
-let currentInput = null;
-let suggestionsPopup = null;
 let debounceTimer = null;
-let isGenerating = false;
 let isEnabled = true;
+let suggestionsPopup = new SuggestionsPopup();
+let lastFocusedInput = null;
 
 // Site-specific configurations
 const siteConfig = {
     'web.whatsapp.com': {
-        insertText: (text) => {
+        insertText: (inputEl, text) => {
+            if (!inputEl) return;
             const dataTransfer = new DataTransfer();
             dataTransfer.setData('text', text);
             const event = new ClipboardEvent('paste', {
                 clipboardData: dataTransfer,
                 bubbles: true
             });
-            const el = document.querySelector('#main .copyable-area [contenteditable="true"][role="textbox"]');
-            if (el) {
-                el.dispatchEvent(event);
-            }
+            inputEl.dispatchEvent(event);
         },
-        extractMessages: () => {
+        extractMessages: (inputEl) => {
             const context = [];
             const messageContainers = document.querySelectorAll('div.message-in, div.message-out');
-            
             messageContainers.forEach(container => {
                 const messageText = container.querySelector('div.copyable-text span.selectable-text');
                 if (messageText) {
@@ -36,20 +35,17 @@ const siteConfig = {
         }
     },
     'gew3.bumble.com': {
-        insertText: (text) => {
-            const textarea = document.querySelector('.textarea__input');
-            if (textarea) {
-                textarea.focus();
-                document.execCommand('insertText', false, text);
-                textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                textarea.dispatchEvent(new Event('change', { bubbles: true }));
-                textarea.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
-            }
+        insertText: (inputEl, text) => {
+            if (!inputEl) return;
+            inputEl.focus();
+            document.execCommand('insertText', false, text);
+            inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+            inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+            inputEl.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
         },
-        extractMessages: () => {
+        extractMessages: (inputEl) => {
             const context = [];
             const messages = document.querySelectorAll('.message');
-            
             messages.forEach(msg => {
                 const sender = msg.classList.contains('message--in') ? 'Other' : 
                              msg.classList.contains('message--out') ? 'You' : 'Unknown';
@@ -65,18 +61,18 @@ const siteConfig = {
         }
     },
     'www.jeevansathi.com': {
-        insertText: (text) => {
-            if (currentInput.isContentEditable) {
-                currentInput.innerText = text;
+        insertText: (inputEl, text) => {
+            if (!inputEl) return;
+            if (inputEl.isContentEditable) {
+                inputEl.innerText = text;
             } else {
-                currentInput.value = text;
+                inputEl.value = text;
             }
-            currentInput.dispatchEvent(new Event('input', { bubbles: true }));
+            inputEl.dispatchEvent(new Event('input', { bubbles: true }));
         },
-        extractMessages: () => {
+        extractMessages: (inputEl) => {
             const context = [];
             const messageContainers = document.querySelectorAll('div.flex.flex-col');
-            
             messageContainers.forEach(container => {
                 const rightMsg = container.querySelector('div.mt-3\\.5.ml-auto');
                 if (rightMsg) {
@@ -85,7 +81,6 @@ const siteConfig = {
                         context.push({ sender: 'You', text });
                     }
                 }
-                
                 const leftMsg = container.querySelector('div.flex.space-x-2 > div.mt-3\\.5:not(.ml-auto)');
                 if (leftMsg) {
                     const text = leftMsg.innerText.trim();
@@ -98,23 +93,23 @@ const siteConfig = {
         }
     },
     'www.linkedin.com': {
-        insertText: (text) => {
-            const inputBox = document.querySelector('.msg-form__contenteditable[contenteditable="true"]');
-            if (!inputBox) return;
-            
-            inputBox.focus();
-            inputBox.innerHTML = `<p>${text}</p>`;
-            inputBox.dispatchEvent(new Event('input', { bubbles: true }));
+        insertText: (inputEl, text) => {
+            if (!inputEl) return;
+            inputEl.focus();
+            if (inputEl.isContentEditable) {
+                 inputEl.innerHTML = `<p>${text}</p>`;
+            } else {
+                 inputEl.value = text;
+            }
+            inputEl.dispatchEvent(new Event('input', { bubbles: true }));
         },
-        extractMessages: () => {
+        extractMessages: (inputEl) => {
             const messages = [];
             const nodes = document.querySelectorAll('li.msg-s-message-list__event .msg-s-event-listitem');
-            
             nodes.forEach(node => {
                 const container = node.closest('li.msg-s-message-list__event');
                 const nameEl = container.querySelector('.msg-s-message-group__name');
                 const bodyEl = container.querySelector('.msg-s-event-listitem__body');
-                
                 if (nameEl && bodyEl) {
                     messages.push({
                         sender: nameEl.innerText.trim(),
@@ -122,29 +117,27 @@ const siteConfig = {
                     });
                 }
             });
-            
             return messages;
         }
     },
     default: {
-        insertText: (text) => {
-            if (currentInput.isContentEditable) {
-                currentInput.innerText = text;
+        insertText: (inputEl, text) => {
+            if (!inputEl) return;
+            if (inputEl.isContentEditable) {
+                inputEl.innerText = text;
             } else {
-                currentInput.value = text;
+                inputEl.value = text;
             }
-            currentInput.dispatchEvent(new Event('input', { bubbles: true }));
+            inputEl.dispatchEvent(new Event('input', { bubbles: true }));
         },
-        extractMessages: () => {
+        extractMessages: (inputEl) => {
             const context = [];
             const messageElements = document.querySelectorAll('[role="listitem"], .message, .chat-message, .conversation-message');
-            
             messageElements.forEach(element => {
                 const isSent = element.classList.contains('sent') || 
                              element.classList.contains('outgoing') || 
                              element.classList.contains('message-out') ||
                              element.getAttribute('data-sent') === 'true';
-                
                 const text = element.innerText.trim();
                 if (text) {
                     context.push({
@@ -158,431 +151,168 @@ const siteConfig = {
     }
 };
 
-// Inject styles
-function injectStyles() {
-    const style = document.createElement('style');
-    style.textContent = `
-        .ai-reply-suggestions {
-            position: fixed;
-            background: #ffffff;
-            border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-            border: 1px solid rgba(0, 0, 0, 0.08);
-            z-index: 999999;
-            opacity: 0;
-            transform: translateY(10px);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            pointer-events: none;
-            max-height: 400px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .ai-reply-suggestions.visible {
-            opacity: 1;
-            transform: translateY(0);
-            pointer-events: auto;
-        }
-
-        .ai-reply-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 16px;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-            background: linear-gradient(to bottom, #fafafa, #f8f8f8);
-            flex-shrink: 0;
-        }
-
-        .ai-reply-title {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            font-size: 13px;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .ai-reply-status {
-            font-size: 11px;
-            font-weight: 500;
-            padding: 2px 8px;
-            border-radius: 12px;
-        }
-
-        .ai-reply-status.loading {
-            background: #fef3c7;
-            color: #92400e;
-        }
-
-        .ai-reply-status.ready {
-            background: #d1fae5;
-            color: #065f46;
-        }
-
-        .ai-reply-status.error {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .ai-reply-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 8px;
-            min-height: 0;
-            max-height: 300px;
-            background: #ffffff;
-        }
-
-        .ai-reply-item {
-            padding: 12px 14px;
-            margin: 4px 0;
-            background: #f9fafb;
-            border: 1px solid transparent;
-            border-radius: 8px;
-            cursor: pointer;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            font-size: 13px;
-            line-height: 1.5;
-            color: #000000 !important;
-            transition: all 0.2s ease;
-            position: relative;
-            z-index: 1;
-            opacity: 0;
-            transform: translateY(10px);
-        }
-
-        .ai-reply-item.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        .ai-reply-item:hover {
-            background: #e5e7eb;
-            border-color: #d1d5db;
-        }
-
-        .ai-reply-footer {
-            padding: 8px 16px;
-            border-top: 1px solid rgba(0, 0, 0, 0.06);
-            background: #f9fafb;
-            flex-shrink: 0;
-        }
-
-        .ai-reply-hint {
-            font-size: 11px;
-            color: #6b7280;
-        }
-
-        .ai-reply-error {
-            color: #991b1b;
-            padding: 12px;
-            text-align: center;
-        }
-
-        .ai-reply-empty {
-            color: #6b7280;
-            padding: 12px;
-            text-align: center;
-            font-size: 13px;
-        }
-
-        @media (prefers-color-scheme: dark) {
-            .ai-reply-suggestions {
-                background: #1f2937;
-                border-color: rgba(255, 255, 255, 0.1);
-            }
-
-            .ai-reply-header {
-                background: linear-gradient(to bottom, #1f2937, #111827);
-                border-bottom-color: rgba(255, 255, 255, 0.1);
-            }
-
-            .ai-reply-title {
-                color: #f3f4f6;
-            }
-
-            .ai-reply-list {
-                background: #1f2937;
-            }
-
-            .ai-reply-item {
-                background: #374151;
-                color: #ffffff !important;
-            }
-
-            .ai-reply-item:hover {
-                background: #4b5563;
-                border-color: #6b7280;
-            }
-
-            .ai-reply-footer {
-                background: #111827;
-                border-top-color: rgba(255, 255, 255, 0.1);
-            }
-
-            .ai-reply-hint {
-                color: #9ca3af;
-            }
-
-            .ai-reply-error {
-                color: #fecaca;
-            }
-
-            .ai-reply-empty {
-                color: #9ca3af;
-            }
-        }
-    `;
-    document.head.appendChild(style);
+function insertText(inputElement, text) {
+    if (!inputElement) return;
+    const currentHostname = inputElement.closest('[data-aireply-hostname]')?.dataset.aireplyHostname || window.location.hostname;
+    const config = siteConfig[currentHostname] || siteConfig.default;
+    config.insertText(inputElement, text);
+    const event = new Event('input', { bubbles: true, cancelable: true });
+    inputElement.dispatchEvent(event);
 }
 
-// Handle text insertion based on hostname
-function insertText(text) {
-    const hostname = window.location.hostname;
-    const config = siteConfig[hostname] || siteConfig.default;
-    config.insertText(text);
+function extractConversationContext(inputElement) {
+    if (!inputElement) return [];
+    const currentHostname = inputElement.closest('[data-aireply-hostname]')?.dataset.aireplyHostname || window.location.hostname;
+    const config = siteConfig[currentHostname] || siteConfig.default;
+    try {
+        return config.extractMessages(inputElement);
+    } catch (error) {
+        console.error('Error extracting conversation context:', error);
+        return [];
+    }
 }
 
-// Extract conversation context
-function extractConversationContext() {
-    const hostname = window.location.hostname;
-    const config = siteConfig[hostname] || siteConfig.default;
-    const context = config.extractMessages();
-    
-    // Update context in background
-    chrome.runtime.sendMessage({
-        action: 'updateContext',
-        context: context.slice(-20) // Keep last 20 messages
+async function actualGenerateSuggestions() {
+    if (!suggestionsPopup.currentInputElement) {
+        throw new Error('Input element not available for suggestions.');
+    }
+    const currentInput = suggestionsPopup.currentInputElement;
+    const currentText = currentInput.value || currentInput.innerText;
+    const hostname = currentInput.closest('[data-aireply-hostname]')?.dataset.aireplyHostname || window.location.hostname;
+    const context = extractConversationContext(currentInput);
+
+    const response = await chrome.runtime.sendMessage({
+        action: 'generateReplies',
+        currentInput: currentText,
+        hostname: hostname,
+        context: context,
+        style: await storage.getStyleForSite(hostname)
     });
+
+    if (response.error) {
+        throw new Error(response.error);
+    }
+    return response.replies || [];
 }
 
-// Detect input fields
+async function actualInsertSuggestion(suggestionText) {
+    if (suggestionsPopup.currentInputElement) {
+        insertText(suggestionsPopup.currentInputElement, suggestionText);
+    }
+}
+
 function detectInputFields() {
-    const inputs = document.querySelectorAll('textarea, input[type="text"], [contenteditable="true"]');
-    
-    inputs.forEach(input => {
-        if (!input.hasAttribute('data-ai-reply-enabled')) {
-            input.setAttribute('data-ai-reply-enabled', 'true');
-            
-            input.addEventListener('click', () => {
-                if (!isEnabled) return;
-                currentInput = input;
-                extractConversationContext();
-                showSuggestionsPopup();
-            });
-            
-            input.addEventListener('focus', () => {
-                if (!isEnabled) return;
-                currentInput = input;
-                extractConversationContext();
-                if (input.value || input.innerText) {
-                    showSuggestionsPopup();
-                }
-            });
-            
-            input.addEventListener('input', () => {
-                if (!isEnabled) return;
-                currentInput = input;
-                extractConversationContext();
-                if (input.value || input.innerText) {
-                    showSuggestionsPopup();
-                }
-            });
+    const inputs = document.querySelectorAll(
+        'textarea, input[type="text"], input[type="search"], [contenteditable="true"]');
 
-            // Add keydown event listener for Escape key
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') {
-                    hideSuggestionsPopup();
+    inputs.forEach(input => {
+        if (input.dataset.aireplyListenersAttached) return;
+        input.dataset.aireplyListenersAttached = 'true';
+        input.dataset.aireplyHostname = window.location.hostname;
+
+        const showPopupForInput = async (eventTargetInput) => {
+            if (!isEnabled) {
+                return;
+            }
+            lastFocusedInput = eventTargetInput;
+            try {
+                suggestionsPopup.show(eventTargetInput);
+                await suggestionsPopup.generateSuggestions(actualGenerateSuggestions, actualInsertSuggestion);
+            } catch (error) {
+                console.error('Error in showPopupForInput:', error);
+            }
+        };
+
+        input.addEventListener('focus', (event) => {
+            showPopupForInput(event.target);
+        });
+
+        input.addEventListener('input', (event) => {
+            clearTimeout(debounceTimer);
+            if (!isEnabled) return;
+            
+            const eventTargetInput = event.target;
+            showPopupForInput(eventTargetInput);
+
+            debounceTimer = setTimeout(async () => {
+                if (isEnabled && suggestionsPopup.currentInputElement === eventTargetInput) {
+                    suggestionsPopup.generateSuggestions(actualGenerateSuggestions, actualInsertSuggestion);
                 }
-            });
-        }
+            }, 500);
+        });
+
+        input.addEventListener('blur', async (event) => {
+            setTimeout(() => {
+                if (suggestionsPopup.popupElement && !suggestionsPopup.popupElement.contains(document.activeElement)) {
+                    suggestionsPopup.hide();
+                }
+            }, 200); 
+        });
     });
 }
 
-// Create suggestions popup
-function createSuggestionsPopup() {
-    if (suggestionsPopup) return;
-    
-    suggestionsPopup = document.createElement('div');
-    suggestionsPopup.className = 'ai-reply-suggestions';
-    suggestionsPopup.innerHTML = `
-        <div class="ai-reply-header">
-            <div class="ai-reply-title">AI Reply Suggestions</div>
-            <div class="ai-reply-status">Ready</div>
-        </div>
-        <div class="ai-reply-list"></div>
-        <div class="ai-reply-footer">
-            <div class="ai-reply-hint">Press Esc to hide • Ctrl+Space to regenerate</div>
-        </div>
-    `;
-    
-    document.body.appendChild(suggestionsPopup);
-}
+async function initialize() {
+    const { disabledSites = [] } = await storage.getDisabledSites();
+    isEnabled = !disabledSites.includes(window.location.hostname);
 
-// Show suggestions popup
-function showSuggestionsPopup() {
-    if (!isEnabled || !suggestionsPopup) {
-        createSuggestionsPopup();
-    }
-    
-    if (currentInput && isEnabled) {
-        const rect = currentInput.getBoundingClientRect();
-        const viewportHeight = window.innerHeight;
-        const spaceBelow = viewportHeight - rect.bottom;
-        const spaceAbove = rect.top;
-        
-        if (spaceBelow < 300 && spaceAbove > spaceBelow) {
-            suggestionsPopup.style.bottom = `${viewportHeight - rect.top + 8}px`;
-            suggestionsPopup.style.top = 'auto';
-        } else {
-            suggestionsPopup.style.top = `${rect.bottom + window.scrollY + 8}px`;
-            suggestionsPopup.style.bottom = 'auto';
-        }
-        
-        suggestionsPopup.style.left = `${rect.left + window.scrollX}px`;
-        suggestionsPopup.style.width = `${Math.min(rect.width, 400)}px`;
-        suggestionsPopup.classList.add('visible');
-        generateSuggestions();
-    }
-}
-
-// Hide suggestions popup
-function hideSuggestionsPopup() {
-    if (suggestionsPopup) {
-        suggestionsPopup.classList.remove('visible');
-    }
-}
-
-// Display suggestions
-function displaySuggestions(suggestions) {
-    if (!suggestionsPopup) {
-        createSuggestionsPopup();
-    }
-    
-    const listEl = suggestionsPopup.querySelector('.ai-reply-list');
-    listEl.innerHTML = '';
-    
-    if (!suggestions || suggestions.length === 0) {
-        listEl.innerHTML = '<div class="ai-reply-empty">No suggestions available</div>';
+    if (!isEnabled) {
+        if (suggestionsPopup) suggestionsPopup.setEnabled(false);
         return;
     }
     
-    suggestions.forEach((suggestion, index) => {
-        const item = document.createElement('div');
-        item.className = 'ai-reply-item';
-        item.textContent = suggestion;
-        item.tabIndex = 0;
-        
-        const handleSuggestion = () => {
-            if (currentInput) {
-                insertText(suggestion);
-                hideSuggestionsPopup();
+    detectInputFields();
+
+    const observer = new MutationObserver((mutationsList) => {
+        let foundNewInput = false;
+        for(let mutation of mutationsList) {
+            if (mutation.type === 'childList' || mutation.type === 'subtree') {
+                if (mutation.addedNodes && mutation.addedNodes.length > 0) {
+                    mutation.addedNodes.forEach(node => {
+                        if (node.nodeType === Node.ELEMENT_NODE) {
+                            if (node.matches('textarea, input[type="text"], input[type="search"], [contenteditable="true"]')) {
+                                foundNewInput = true;
+                            } else if (node.querySelector('textarea, input[type="text"], input[type="search"], [contenteditable="true"]')) {
+                                foundNewInput = true;
+                            }
+                        }
+                    });
+                }
             }
-        };
-        
-        item.addEventListener('click', handleSuggestion);
-        item.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                handleSuggestion();
-            }
-        });
-        
-        listEl.appendChild(item);
-        
-        // Animate in
-        setTimeout(() => item.classList.add('visible'), index * 50);
+        }
+        if (foundNewInput) {
+            detectInputFields();
+        }
     });
+    observer.observe(document.body, { childList: true, subtree: true });
 }
 
-// Generate suggestions from AI
-async function generateSuggestions() {
-    if (!isEnabled || isGenerating) return;
-    
-    isGenerating = true;
-    const statusEl = suggestionsPopup.querySelector('.ai-reply-status');
-    const listEl = suggestionsPopup.querySelector('.ai-reply-list');
-    
-    statusEl.textContent = 'Generating...';
-    statusEl.className = 'ai-reply-status loading';
-    
-    try {
-        const response = await chrome.runtime.sendMessage({
-            action: 'generateReplies',
-            currentInput: currentInput.value || currentInput.innerText,
-            hostname: window.location.hostname
-        });
-        
-        if (response.error) {
-            throw new Error(response.error);
-        }
-        
-        if (!response.replies || response.replies.length === 0) {
-            throw new Error('No suggestions generated');
-        }
-        
-        displaySuggestions(response.replies);
-        statusEl.textContent = 'Ready';
-        statusEl.className = 'ai-reply-status ready';
-    } catch (error) {
-        statusEl.textContent = error.message;
-        statusEl.className = 'ai-reply-status error';
-        listEl.innerHTML = `<div class="ai-reply-error">${error.message}</div>`;
-    } finally {
-        isGenerating = false;
-    }
-}
-
-// Initialize
-async function initialize() {
-    // Check if site is enabled
-    const hostname = window.location.hostname;
-    const { disabledSites = [] } = await chrome.storage.local.get('disabledSites');
-    isEnabled = !disabledSites.includes(hostname);
-
-    if (isEnabled) {
-        injectStyles();
-        detectInputFields();
-        
-        setInterval(detectInputFields, 2000);
-        
-        const observer = new MutationObserver(() => {
-            detectInputFields();
-        });
-        
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
-    }
-}
-
-// Listen for toggle messages
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === 'toggleEnabled') {
-        isEnabled = message.enabled;
-        
-        if (isEnabled) {
-            // Enable extension
-            injectStyles();
-            detectInputFields();
-        } else {
-            // Disable extension
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    (async () => {
+        if (request.action === 'toggleEnabled') {
+            isEnabled = request.enabled;
             if (suggestionsPopup) {
-                suggestionsPopup.remove();
-                suggestionsPopup = null;
+                suggestionsPopup.setEnabled(isEnabled);
+                if (!isEnabled) {
+                    suggestionsPopup.hide();
+                }
             }
-            // Remove all event listeners
-            const inputs = document.querySelectorAll('[data-ai-reply-enabled]');
-            inputs.forEach(input => {
-                input.removeAttribute('data-ai-reply-enabled');
-            });
+            sendResponse({status: "done"}); 
+        } else if (request.action === 'regenerateSuggestions') {
+            if (!isEnabled) {
+                sendResponse({status: "failed", reason: "Extension disabled on this site."});
+                return true; 
+            }
+            const targetInput = suggestionsPopup.currentInputElement || lastFocusedInput;
+            if (targetInput) {
+                suggestionsPopup.show(targetInput);
+                await suggestionsPopup.generateSuggestions(actualGenerateSuggestions, actualInsertSuggestion);
+                sendResponse({status: "regenerating"});
+            } else {
+                sendResponse({status: "failed", reason: "No active input for suggestions."});
+            }
         }
-    }
+    })(); 
+    return true; 
 });
 
-// Start when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initialize);
-} else {
-    initialize();
-}
+initialize();

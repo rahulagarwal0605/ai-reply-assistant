@@ -30,39 +30,67 @@ let currentHostname = null;
 
 // Initialize popup
 async function init() {
-  // Check configuration status
   const isConfigured = await storage.isConfigured();
   updateStatus(isConfigured);
   
-  // Get current tab
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   currentTab = tab;
   
-  if (tab.url) {
+  if (tab && tab.url) {
     try {
       const url = new URL(tab.url);
       currentHostname = url.hostname;
       elements.siteName.textContent = currentHostname;
       
-      // Load current style for site
-      const style = await storage.getStyleForSite(currentHostname);
-      elements.toneSelect.value = style.tone || 'professional';
-      elements.temperatureInput.value = style.temperature || '0.7';
-      elements.temperatureValue.textContent = style.temperature || '0.7';
-      updateTemperatureDescription(style.temperature || '0.7');
+      let style = await storage.getStyleForSite(currentHostname);
+      
+      if (!style || typeof style.temperature === 'undefined' || typeof style.tone === 'undefined' || typeof style.formality === 'undefined') {
+        const defaultConfig = await storage.getConfig();
+        const globalDefaultStyleFromConfig = defaultConfig?.styles?.default;
 
-      // Load disabled sites and set toggle state
-      const { disabledSites = [] } = await chrome.storage.local.get('disabledSites');
+        let finalTone = storage.DEFAULT_FALLBACK_STYLE.tone;
+        let finalTemp = storage.DEFAULT_FALLBACK_STYLE.temperature;
+        let finalFormality = storage.DEFAULT_FALLBACK_STYLE.formality;
+
+        if (globalDefaultStyleFromConfig) {
+            finalTone = globalDefaultStyleFromConfig.tone !== undefined ? globalDefaultStyleFromConfig.tone : finalTone;
+            finalTemp = globalDefaultStyleFromConfig.temperature !== undefined ? globalDefaultStyleFromConfig.temperature : finalTemp;
+            finalFormality = globalDefaultStyleFromConfig.formality !== undefined ? globalDefaultStyleFromConfig.formality : finalFormality;
+        }
+        
+        if (style) { 
+            style.tone = style.tone !== undefined ? style.tone : finalTone;
+            style.temperature = style.temperature !== undefined ? style.temperature : finalTemp;
+            style.formality = style.formality !== undefined ? style.formality : finalFormality;
+        } else { 
+            style = {
+                tone: finalTone,
+                temperature: finalTemp,
+                formality: finalFormality
+            };
+        }
+      }
+
+      elements.toneSelect.value = style.tone;
+      elements.temperatureInput.value = Number(style.temperature);
+      elements.temperatureValue.textContent = Number(style.temperature).toFixed(1);
+      updateTemperatureDescription(String(style.temperature));
+
+      const disabledSites = await storage.getDisabledSites();
       elements.siteToggle.checked = !disabledSites.includes(currentHostname);
+      elements.siteSection.style.display = 'block';
+
     } catch (e) {
-      elements.siteName.textContent = 'Invalid URL';
+      console.error('Error processing tab URL in init:', e, e.stack);
+      elements.siteName.textContent = 'N/A';
+      elements.siteSection.style.display = 'none';
     }
+  } else {
+    elements.siteName.textContent = 'N/A';
+    elements.siteSection.style.display = 'none';
   }
   
-  // Load stats
   await loadStats();
-  
-  // Setup event listeners
   setupEventListeners();
 }
 
@@ -87,15 +115,9 @@ function updateStatus(isConfigured) {
 async function loadStats() {
   try {
     const stats = await storage.getStats();
-    
-    // Update suggestions count
     elements.suggestionsCount.textContent = stats.suggestions || 0;
-    
-    // Update sites count
     const activeSites = Object.keys(stats.sites || {}).length;
     elements.sitesCount.textContent = activeSites;
-    
-    // Update stats section visibility
     elements.statsSection.style.display = 'grid';
   } catch (error) {
     console.error('Error loading stats:', error);
@@ -121,40 +143,19 @@ function updateTemperatureDescription(value) {
   }
 }
 
-// Load current site settings
-async function loadCurrentSiteSettings() {
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    const hostname = new URL(tab.url).hostname;
-    elements.siteName.textContent = hostname;
-
-    const { disabledSites = [] } = await chrome.storage.local.get('disabledSites');
-    elements.siteToggle.checked = !disabledSites.includes(hostname);
-  } catch (error) {
-    console.error('Error loading site settings:', error);
-  }
-}
-
 // Toggle site enablement
 async function toggleSiteEnablement() {
+  if (!currentHostname) return;
   try {
-    if (!currentHostname) return;
-    
-    const { disabledSites = [] } = await chrome.storage.local.get('disabledSites');
-    
+    let disabledSites = await storage.getDisabledSites();
     if (elements.siteToggle.checked) {
-      // Enable site
-      const newDisabledSites = disabledSites.filter(site => site !== currentHostname);
-      await chrome.storage.local.set({ disabledSites: newDisabledSites });
+      disabledSites = disabledSites.filter(site => site !== currentHostname);
     } else {
-      // Disable site
       if (!disabledSites.includes(currentHostname)) {
         disabledSites.push(currentHostname);
-        await chrome.storage.local.set({ disabledSites });
       }
     }
-
-    // Notify content script
+    await storage.setDisabledSites(disabledSites);
     if (currentTab?.id) {
       chrome.tabs.sendMessage(currentTab.id, {
         action: 'toggleEnabled',
@@ -163,77 +164,81 @@ async function toggleSiteEnablement() {
     }
   } catch (error) {
     console.error('Error toggling site:', error);
-    // Revert toggle state on error
-    elements.siteToggle.checked = !elements.siteToggle.checked;
+    const originalDisabledSites = await storage.getDisabledSites();
+    elements.siteToggle.checked = !originalDisabledSites.includes(currentHostname);
   }
 }
 
 // Setup event listeners
 function setupEventListeners() {
-  // Settings button
   elements.settingsBtn.addEventListener('click', () => {
     chrome.runtime.openOptionsPage();
   });
-  
-  // Configure button
   elements.configureBtn.addEventListener('click', () => {
     chrome.runtime.openOptionsPage();
   });
-  
-  // Edit style button
   elements.editStyleBtn.addEventListener('click', () => {
     elements.styleEditor.style.display = 'block';
     elements.editStyleBtn.style.display = 'none';
   });
-  
-  // Temperature slider
   elements.temperatureInput.addEventListener('input', (e) => {
-    elements.temperatureValue.textContent = e.target.value;
-    updateTemperatureDescription(e.target.value);
+    const tempValue = parseFloat(e.target.value).toFixed(1);
+    elements.temperatureValue.textContent = tempValue;
+    updateTemperatureDescription(tempValue);
   });
-  
-  // Save style button
   elements.saveStyleBtn.addEventListener('click', async () => {
-    const style = {
+    const styleToSave = {
       tone: elements.toneSelect.value,
-      temperature: elements.temperatureInput.value
+      temperature: parseFloat(elements.temperatureInput.value),
+      formality: (await storage.getStyleForSite(currentHostname))?.formality || storage.DEFAULT_FALLBACK_STYLE.formality 
     };
-    
-    await storage.setStyleForSite(currentHostname, style);
+    await storage.setStyleForSite(currentHostname, styleToSave);
     elements.styleEditor.style.display = 'none';
     elements.editStyleBtn.style.display = 'block';
-    
-    // Show success animation
     elements.saveStyleBtn.textContent = '✓ Saved';
     setTimeout(() => {
       elements.saveStyleBtn.textContent = 'Save';
     }, 1500);
   });
-  
-  // Cancel style button
   elements.cancelStyleBtn.addEventListener('click', async () => {
-    // Reset to original values
-    const style = await storage.getStyleForSite(currentHostname);
-    elements.toneSelect.value = style.tone || 'professional';
-    elements.temperatureInput.value = style.temperature || '0.7';
-    elements.temperatureValue.textContent = style.temperature || '0.7';
-    updateTemperatureDescription(style.temperature || '0.7');
-    
+    let style = await storage.getStyleForSite(currentHostname);
+    if (!style || typeof style.temperature === 'undefined' || typeof style.tone === 'undefined' || typeof style.formality === 'undefined') {
+        const defaultConfig = await storage.getConfig(); 
+        const globalDefaultStyleFromConfig = defaultConfig?.styles?.default;
+        let finalTone = storage.DEFAULT_FALLBACK_STYLE.tone;
+        let finalTemp = storage.DEFAULT_FALLBACK_STYLE.temperature;
+        let finalFormality = storage.DEFAULT_FALLBACK_STYLE.formality;
+        if (globalDefaultStyleFromConfig) {
+            finalTone = globalDefaultStyleFromConfig.tone !== undefined ? globalDefaultStyleFromConfig.tone : finalTone;
+            finalTemp = globalDefaultStyleFromConfig.temperature !== undefined ? globalDefaultStyleFromConfig.temperature : finalTemp;
+            finalFormality = globalDefaultStyleFromConfig.formality !== undefined ? globalDefaultStyleFromConfig.formality : finalFormality;
+        }
+        if (style) { 
+            style.tone = style.tone !== undefined ? style.tone : finalTone;
+            style.temperature = style.temperature !== undefined ? style.temperature : finalTemp;
+            style.formality = style.formality !== undefined ? style.formality : finalFormality;
+        } else {
+            style = {
+                tone: finalTone,
+                temperature: finalTemp,
+                formality: finalFormality
+            };
+        }
+    }
+    elements.toneSelect.value = style.tone;
+    elements.temperatureInput.value = Number(style.temperature);
+    elements.temperatureValue.textContent = Number(style.temperature).toFixed(1);
+    updateTemperatureDescription(String(style.temperature));
     elements.styleEditor.style.display = 'none';
     elements.editStyleBtn.style.display = 'block';
   });
-  
-  // Playground link
   elements.playgroundLink.addEventListener('click', (e) => {
     e.preventDefault();
     chrome.tabs.create({
       url: chrome.runtime.getURL('src/playground/index.html')
     });
   });
-  
-  // Site toggle
   elements.siteToggle.addEventListener('change', toggleSiteEnablement);
 }
 
-// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', init); 

@@ -6,7 +6,8 @@
   "permissions": [
     "storage",
     "activeTab",
-    "scripting"
+    "scripting",
+    "tabs"
   ],
   "host_permissions": [
     "https://*/*",
@@ -16,14 +17,6 @@
     "service_worker": "src/background/background.js",
     "type": "module"
   },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["src/content/content.js"],
-      "css": ["src/styles/content.css"],
-      "run_at": "document_idle"
-    }
-  ],
   "action": {
     "default_popup": "src/popup/popup.html",
     "default_icon": {
@@ -42,5 +35,19 @@
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/content/content.js",
+        "src/content/suggestions-popup.js",
+        "src/utils/storage.js",
+        "src/utils/api-client.js",
+        "src/utils/llm-providers.js",
+        "src/styles/content.css",
+        "src/assets/icons/*.png"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
 } 

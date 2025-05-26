@@ -22,8 +22,32 @@ const elements = {
   exportBtn: document.getElementById('exportBtn'),
   importBtn: document.getElementById('importBtn'),
   importFile: document.getElementById('importFile'),
-  resetBtn: document.getElementById('resetBtn')
+  resetBtn: document.getElementById('resetBtn'),
+  // Advanced Settings Elements
+  autoDetectContextCheckbox: document.getElementById('autoDetectContext'),
+  showOnFocusCheckbox: document.getElementById('showOnFocus'),
+  enableShortcutsCheckbox: document.getElementById('enableShortcuts'),
+  debounceDelayInput: document.getElementById('debounceDelay'),
+  saveAdvancedBtn: document.createElement('button') // Placeholder, will be created if not in HTML
 };
+
+// Ensure saveAdvancedBtn exists or create it dynamically if not in HTML
+if (!document.getElementById('saveAdvancedBtn')) {
+    const advancedSection = document.querySelector('#autoDetectContext')?.closest('.card');
+    if (advancedSection) {
+        const formActions = advancedSection.querySelector('.form-actions') || document.createElement('div');
+        if (!advancedSection.querySelector('.form-actions')) {
+            formActions.className = 'form-actions';
+            advancedSection.appendChild(formActions);
+        }
+        elements.saveAdvancedBtn.id = 'saveAdvancedBtn';
+        elements.saveAdvancedBtn.textContent = 'Save Advanced Settings';
+        elements.saveAdvancedBtn.className = 'btn-primary';
+        formActions.appendChild(elements.saveAdvancedBtn);
+    }
+} else {
+    elements.saveAdvancedBtn = document.getElementById('saveAdvancedBtn');
+}
 
 // Initialize
 async function init() {
@@ -38,26 +62,37 @@ async function loadConfiguration() {
   const config = await storage.getConfig();
   
   // API Configuration
+  elements.providerSelect.value = config.provider || '';
   if (config.provider) {
-    elements.providerSelect.value = config.provider;
     await updateProviderUI(config.provider);
   }
   
-  if (config.apiKey) {
-    elements.apiKeyInput.value = config.apiKey;
-  }
+  elements.apiKeyInput.value = config.apiKey || '';
   
   if (config.model) {
-    elements.modelSelect.value = config.model;
+    const providerConfig = LLM_PROVIDERS[config.provider];
+    if (providerConfig && providerConfig.models.some(m => m.id === config.model)) {
+        elements.modelSelect.value = config.model;
+    }
   }
   
-  elements.temperatureInput.value = config.temperature || 0.7;
-  elements.temperatureValue.textContent = config.temperature || 0.7;
+  elements.customUrlInput.value = config.customUrl || '';
+  elements.temperatureInput.value = config.temperature !== undefined ? config.temperature : 0.7;
+  elements.temperatureValue.textContent = parseFloat(elements.temperatureInput.value).toFixed(1);
+  updateTemperatureDescription(elements.temperatureInput.value);
   
   // Default styles
-  const defaultStyle = config.styles.default || {};
+  const defaultStyle = config.styles?.default || {};
   elements.defaultToneSelect.value = defaultStyle.tone || 'professional';
   elements.defaultLengthSelect.value = defaultStyle.length || 'medium';
+  updateToneDescription(elements.defaultToneSelect.value);
+
+  // Load Advanced Settings
+  const advanced = config.advanced || {};
+  elements.autoDetectContextCheckbox.checked = advanced.autoDetectContext !== undefined ? advanced.autoDetectContext : true;
+  elements.showOnFocusCheckbox.checked = advanced.showOnFocus !== undefined ? advanced.showOnFocus : true;
+  elements.enableShortcutsCheckbox.checked = advanced.enableShortcuts !== undefined ? advanced.enableShortcuts : true;
+  elements.debounceDelayInput.value = advanced.debounceDelay !== undefined ? advanced.debounceDelay : 500;
 }
 
 // Setup event listeners
@@ -65,6 +100,10 @@ function setupEventListeners() {
   // Provider change
   elements.providerSelect.addEventListener('change', async (e) => {
     await updateProviderUI(e.target.value);
+    elements.modelSelect.value = '';
+    if (LLM_PROVIDERS[e.target.value]?.models.length > 0) {
+        elements.modelSelect.value = LLM_PROVIDERS[e.target.value].models[0].id;
+    }
   });
   
   // API key visibility toggle
@@ -75,7 +114,8 @@ function setupEventListeners() {
   
   // Temperature slider
   elements.temperatureInput.addEventListener('input', (e) => {
-    elements.temperatureValue.textContent = e.target.value;
+    elements.temperatureValue.textContent = parseFloat(e.target.value).toFixed(1);
+    updateTemperatureDescription(e.target.value);
   });
   
   // Save configuration
@@ -99,15 +139,25 @@ function setupEventListeners() {
   
   // Reset settings
   elements.resetBtn.addEventListener('click', resetSettings);
+  
+  // Save Advanced Settings
+  if (elements.saveAdvancedBtn) {
+    elements.saveAdvancedBtn.addEventListener('click', saveAdvancedSettings);
+  }
+  
+  // Default tone select listener
+  elements.defaultToneSelect.addEventListener('change', (e) => {
+    updateToneDescription(e.target.value);
+  });
 }
 
 // Update UI based on selected provider
 async function updateProviderUI(provider) {
-  if (!provider) {
-    elements.modelGroup.style.display = 'none';
-    elements.customUrlGroup.style.display = 'none';
-    return;
-  }
+  elements.modelGroup.style.display = 'none';
+  elements.customUrlGroup.style.display = 'none';
+  elements.modelSelect.innerHTML = '<option value="">Select a model...</option>';
+  
+  if (!provider) return;
   
   const providerConfig = LLM_PROVIDERS[provider];
   
@@ -115,8 +165,6 @@ async function updateProviderUI(provider) {
   elements.customUrlGroup.style.display = provider === 'custom' ? 'block' : 'none';
   
   // Update model dropdown
-  elements.modelSelect.innerHTML = '<option value="">Select a model...</option>';
-  
   if (providerConfig && providerConfig.models.length > 0) {
     providerConfig.models.forEach(model => {
       const option = document.createElement('option');
@@ -136,6 +184,7 @@ async function saveConfiguration() {
   const apiKey = elements.apiKeyInput.value.trim();
   const model = elements.modelSelect.value;
   const temperature = parseFloat(elements.temperatureInput.value);
+  const customUrl = elements.customUrlInput.value.trim();
   
   // Validate inputs
   if (!provider) {
@@ -148,8 +197,13 @@ async function saveConfiguration() {
     return;
   }
   
-  if (provider !== 'custom' && !model) {
-    showAlert('Please select a model', 'error');
+  if (provider !== 'custom' && LLM_PROVIDERS[provider]?.models.length > 0 && !model) {
+    showAlert('Please select a model for this provider', 'error');
+    return;
+  }
+  
+  if (provider === 'custom' && !customUrl) {
+    showAlert('Please enter the Custom API Base URL', 'error');
     return;
   }
   
@@ -166,7 +220,9 @@ async function saveConfiguration() {
     config.isConfigured = true;
     
     if (provider === 'custom') {
-      config.customUrl = elements.customUrlInput.value.trim();
+      config.customUrl = customUrl;
+    } else {
+      delete config.customUrl;
     }
     
     await storage.setConfig(config);
@@ -188,9 +244,15 @@ async function testConfiguration() {
   const provider = elements.providerSelect.value;
   const apiKey = elements.apiKeyInput.value.trim();
   const model = elements.modelSelect.value;
+  const customUrl = elements.customUrlInput.value.trim();
   
-  if (!provider || !apiKey || (provider !== 'custom' && !model)) {
-    showAlert('Please complete the configuration first', 'warning');
+  if (!provider || !apiKey || (provider !== 'custom' && LLM_PROVIDERS[provider]?.models.length > 0 && !model)) {
+    showAlert('Please complete the API configuration first (Provider, API Key, Model)', 'warning');
+    return;
+  }
+  
+  if (provider === 'custom' && !customUrl) {
+    showAlert('Please enter the Custom API Base URL for testing', 'warning');
     return;
   }
   
@@ -198,20 +260,19 @@ async function testConfiguration() {
   elements.testConfigBtn.disabled = true;
   
   try {
-    const response = await chrome.runtime.sendMessage({
-      action: 'validateConfig',
-      provider,
-      apiKey,
-      model
-    });
+    const testPayload = { action: 'validateConfig', provider, apiKey, model };
+    if (provider === 'custom') {
+      testPayload.customUrl = customUrl;
+    }
+    const response = await chrome.runtime.sendMessage(testPayload);
     
     if (response.valid) {
       showAlert('Connection successful! Your configuration is valid.', 'success');
     } else {
-      showAlert('Connection failed: ' + response.error, 'error');
+      showAlert(`Connection failed: ${response.error}`, 'error');
     }
   } catch (error) {
-    showAlert('Test failed: ' + error.message, 'error');
+    showAlert(`Test failed: ${error.message}`, 'error');
   } finally {
     elements.testConfigBtn.classList.remove('loading');
     elements.testConfigBtn.disabled = false;
@@ -225,6 +286,7 @@ async function saveDefaultStyle() {
   
   try {
     const config = await storage.getConfig();
+    if (!config.styles) config.styles = {};
     config.styles.default = {
       tone,
       length,
@@ -245,15 +307,41 @@ async function saveDefaultStyle() {
   }
 }
 
+// Save Advanced Settings
+async function saveAdvancedSettings() {
+  const advanced = {
+    autoDetectContext: elements.autoDetectContextCheckbox.checked,
+    showOnFocus: elements.showOnFocusCheckbox.checked,
+    enableShortcuts: elements.enableShortcutsCheckbox.checked,
+    debounceDelay: parseInt(elements.debounceDelayInput.value, 10)
+  };
+
+  if (isNaN(advanced.debounceDelay) || advanced.debounceDelay < 100 || advanced.debounceDelay > 2000) {
+    showAlert('Invalid debounce delay. Must be between 100 and 2000 ms.', 'error');
+    return;
+  }
+
+  try {
+    const config = await storage.getConfig();
+    config.advanced = advanced;
+    await storage.setConfig(config);
+    showAlert('Advanced settings saved!', 'success');
+    // Animate button if it's a real button
+    if (elements.saveAdvancedBtn && elements.saveAdvancedBtn.textContent) {
+        elements.saveAdvancedBtn.textContent = '✓ Saved';
+        setTimeout(() => { elements.saveAdvancedBtn.textContent = 'Save Advanced Settings'; }, 2000);
+    }
+  } catch (error) {
+    showAlert('Failed to save advanced settings: ' + error.message, 'error');
+  }
+}
+
 // Export configuration
 async function exportConfiguration() {
   const config = await storage.getConfig();
   
   // Remove sensitive data from export
-  const exportData = {
-    ...config,
-    apiKey: '' // Don't export API key
-  };
+  const exportData = { ...config, apiKey: '' };
   
   const blob = new Blob([JSON.stringify(exportData, null, 2)], {
     type: 'application/json'
@@ -280,14 +368,17 @@ async function importConfiguration(event) {
     const text = await file.text();
     const importedConfig = JSON.parse(text);
     
-    // Merge with existing config
     const currentConfig = await storage.getConfig();
-    const mergedConfig = {
-      ...currentConfig,
-      ...importedConfig,
-      apiKey: currentConfig.apiKey // Keep existing API key
-    };
+    const mergedConfig = { ...currentConfig, ...importedConfig, apiKey: currentConfig.apiKey || importedConfig.apiKey || '' };
     
+    // Ensure nested objects like styles and advanced are merged, not just replaced if only partially in importedConfig
+    if (importedConfig.styles) {
+        mergedConfig.styles = { ...(currentConfig.styles || {}), ...importedConfig.styles };
+    }
+    if (importedConfig.advanced) {
+        mergedConfig.advanced = { ...(currentConfig.advanced || {}), ...importedConfig.advanced };
+    }
+
     await storage.setConfig(mergedConfig);
     await loadConfiguration();
     
@@ -335,16 +426,7 @@ function showAlert(message, type) {
 
 // Initialize tone descriptions
 function initializeToneDescriptions() {
-  const toneSelect = document.getElementById('defaultToneSelect');
-  const descriptions = document.querySelectorAll('.tone-description .description');
-  
-  // Show initial description
-  updateToneDescription(toneSelect.value);
-  
-  // Update description when tone changes
-  toneSelect.addEventListener('change', (e) => {
-    updateToneDescription(e.target.value);
-  });
+  // This is now handled by the event listener in setupEventListeners and loadConfiguration
 }
 
 // Update visible tone description
@@ -360,25 +442,13 @@ function updateToneDescription(tone) {
 
 // Initialize temperature descriptions
 function initializeTemperatureDescriptions() {
-  const temperatureInput = document.getElementById('temperatureInput');
-  const descriptions = document.querySelectorAll('.temperature-description .description');
-  
-  // Show initial description
-  updateTemperatureDescription(temperatureInput.value);
-  
-  // Update description when temperature changes
-  temperatureInput.addEventListener('input', (e) => {
-    elements.temperatureValue.textContent = e.target.value;
-    updateTemperatureDescription(e.target.value);
-  });
+  // This is now handled by the event listener in setupEventListeners and loadConfiguration
 }
 
 // Update visible temperature description
 function updateTemperatureDescription(value) {
   const descriptions = document.querySelectorAll('.temperature-description .description');
-  descriptions.forEach(desc => {
-    desc.classList.remove('active');
-  });
+  descriptions.forEach(desc => desc.classList.remove('active'));
   
   const temp = parseFloat(value);
   if (temp <= 0.3) {

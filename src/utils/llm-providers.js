@@ -166,19 +166,37 @@ export function getProvider(providerId) {
 }
 
 // Validate API configuration
-export async function validateApiConfig(provider, apiKey, model) {
+export async function validateApiConfig(providerId, apiKey, modelId) {
   try {
-    // Simple validation - could be expanded with actual API calls
-    if (!provider || !apiKey || !model) {
-      return { valid: false, error: 'Missing configuration' };
+    if (!providerId || !apiKey || !modelId) {
+      return { valid: false, error: 'Missing configuration: Provider, API Key, and Model are required.' };
+    }
+
+    const providerConfig = getProvider(providerId);
+    if (!providerConfig) {
+      return { valid: false, error: `Invalid provider: ${providerId}` };
+    }
+
+    // For custom provider, model validation might be different or skipped if models are user-defined dynamically
+    if (providerId !== 'custom') {
+        const modelExists = providerConfig.models.some(m => m.id === modelId);
+        if (!modelExists) {
+            return { valid: false, error: `Model ${modelId} not found for provider ${providerConfig.name}.` };
+        }
     }
     
-    if (apiKey.length < 10) {
-      return { valid: false, error: 'Invalid API key format' };
+    // Basic API key format check (can be provider-specific if needed)
+    if (apiKey.length < 10) { // Arbitrary minimum length
+      return { valid: false, error: 'Invalid API key format (too short).' };
     }
     
+    // TODO: Consider adding an actual test API call for deeper validation if feasible
+    // For example, fetching models from the provider if an endpoint exists.
+    // For now, these checks cover basic configuration integrity.
+
     return { valid: true };
   } catch (error) {
-    return { valid: false, error: error.message };
+    console.error(`Error validating API config for ${providerId}:`, error);
+    return { valid: false, error: error.message || 'An unexpected error occurred during validation.' };
   }
 } 
