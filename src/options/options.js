@@ -29,6 +29,8 @@ const elements = {
 async function init() {
   await loadConfiguration();
   setupEventListeners();
+  initializeToneDescriptions();
+  initializeTemperatureDescriptions();
 }
 
 // Load saved configuration
@@ -331,5 +333,65 @@ function showAlert(message, type) {
   }, 5000);
 }
 
+// Initialize tone descriptions
+function initializeToneDescriptions() {
+  const toneSelect = document.getElementById('defaultToneSelect');
+  const descriptions = document.querySelectorAll('.tone-description .description');
+  
+  // Show initial description
+  updateToneDescription(toneSelect.value);
+  
+  // Update description when tone changes
+  toneSelect.addEventListener('change', (e) => {
+    updateToneDescription(e.target.value);
+  });
+}
+
+// Update visible tone description
+function updateToneDescription(tone) {
+  const descriptions = document.querySelectorAll('.tone-description .description');
+  descriptions.forEach(desc => {
+    desc.classList.remove('active');
+    if (desc.classList.contains(tone)) {
+      desc.classList.add('active');
+    }
+  });
+}
+
+// Initialize temperature descriptions
+function initializeTemperatureDescriptions() {
+  const temperatureInput = document.getElementById('temperatureInput');
+  const descriptions = document.querySelectorAll('.temperature-description .description');
+  
+  // Show initial description
+  updateTemperatureDescription(temperatureInput.value);
+  
+  // Update description when temperature changes
+  temperatureInput.addEventListener('input', (e) => {
+    elements.temperatureValue.textContent = e.target.value;
+    updateTemperatureDescription(e.target.value);
+  });
+}
+
+// Update visible temperature description
+function updateTemperatureDescription(value) {
+  const descriptions = document.querySelectorAll('.temperature-description .description');
+  descriptions.forEach(desc => {
+    desc.classList.remove('active');
+  });
+  
+  const temp = parseFloat(value);
+  if (temp <= 0.3) {
+    document.querySelector('.temperature-description .description.focused').classList.add('active');
+  } else if (temp <= 0.7) {
+    document.querySelector('.temperature-description .description.balanced').classList.add('active');
+  } else {
+    document.querySelector('.temperature-description .description.creative').classList.add('active');
+  }
+}
+
 // Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', init); 
+document.addEventListener('DOMContentLoaded', () => {
+  init();
+  initializeTemperatureDescriptions();
+}); 

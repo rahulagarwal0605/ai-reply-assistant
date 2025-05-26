@@ -17,6 +17,7 @@ const elements = {
   editStyleBtn: document.getElementById('editStyleBtn'),
   styleEditor: document.getElementById('styleEditor'),
   toneSelect: document.getElementById('toneSelect'),
+  temperatureSelect: document.getElementById('temperatureSelect'),
   saveStyleBtn: document.getElementById('saveStyleBtn'),
   cancelStyleBtn: document.getElementById('cancelStyleBtn'),
   playgroundLink: document.getElementById('playgroundLink')
@@ -43,7 +44,8 @@ async function init() {
       
       // Load current style for site
       const style = await storage.getStyleForSite(currentHostname);
-      elements.toneSelect.value = style.tone;
+      elements.toneSelect.value = style.tone || 'professional';
+      elements.temperatureSelect.value = style.temperature || '0.7';
     } catch (e) {
       elements.siteName.textContent = 'Invalid URL';
     }
@@ -110,8 +112,7 @@ function setupEventListeners() {
   elements.saveStyleBtn.addEventListener('click', async () => {
     const style = {
       tone: elements.toneSelect.value,
-      length: 'medium',
-      formality: 'neutral'
+      temperature: elements.temperatureSelect.value
     };
     
     await storage.setStyleForSite(currentHostname, style);
@@ -127,9 +128,10 @@ function setupEventListeners() {
   
   // Cancel style button
   elements.cancelStyleBtn.addEventListener('click', async () => {
-    // Reset to original value
+    // Reset to original values
     const style = await storage.getStyleForSite(currentHostname);
-    elements.toneSelect.value = style.tone;
+    elements.toneSelect.value = style.tone || 'professional';
+    elements.temperatureSelect.value = style.temperature || '0.7';
     
     elements.styleEditor.style.display = 'none';
     elements.editStyleBtn.style.display = 'block';

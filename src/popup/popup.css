@@ -230,7 +230,7 @@ body {
 }
 
 .style-option {
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .style-option label {
@@ -244,55 +244,63 @@ body {
 .style-select {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid #d1d5db;
+  border: 1px solid #e5e7eb;
   border-radius: 6px;
+  font-size: 13px;
   background: white;
-  font-size: 14px;
-  cursor: pointer;
+  color: #111827;
   transition: all 0.2s ease;
 }
 
 .style-select:focus {
   outline: none;
   border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+}
+
+.option-description {
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 4px;
+  padding-left: 4px;
 }
 
 .style-actions {
   display: flex;
   gap: 8px;
-  margin-top: 16px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
 }
 
 .btn-save,
 .btn-cancel {
-  flex: 1;
   padding: 8px 16px;
   border: none;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .btn-save {
-  background: #10b981;
+  background: #6366f1;
   color: white;
 }
 
 .btn-save:hover {
-  background: #059669;
+  background: #4f46e5;
   transform: translateY(-1px);
 }
 
 .btn-cancel {
-  background: #e5e7eb;
+  background: #f3f4f6;
   color: #374151;
 }
 
 .btn-cancel:hover {
-  background: #d1d5db;
+  background: #e5e7eb;
 }
 
 /* Warning Section */
@@ -420,6 +428,27 @@ body {
     background: #1f2937;
     border-color: #4b5563;
     color: #f3f4f6;
+  }
+
+  .style-select:focus {
+    border-color: #6366f1;
+  }
+
+  .option-description {
+    color: #9ca3af;
+  }
+
+  .style-actions {
+    border-top-color: #374151;
+  }
+
+  .btn-cancel {
+    background: #374151;
+    color: #f3f4f6;
+  }
+
+  .btn-cancel:hover {
+    background: #4b5563;
   }
 
   .popup-footer {

@@ -13,7 +13,7 @@ export const LLM_PROVIDERS = {
       'Content-Type': 'application/json'
     }),
     defaultParams: {
-      temperature: 0.7,
+      temperature: 0.85,
       max_tokens: 150,
       top_p: 1,
       frequency_penalty: 0,
@@ -35,7 +35,7 @@ export const LLM_PROVIDERS = {
       'Content-Type': 'application/json'
     }),
     defaultParams: {
-      temperature: 0.7,
+      temperature: 0.85,
       max_tokens: 150
     }
   },
@@ -52,7 +52,7 @@ export const LLM_PROVIDERS = {
       'Content-Type': 'application/json'
     }),
     defaultParams: {
-      temperature: 0.7,
+      temperature: 0.85,
       maxOutputTokens: 150,
       topP: 1,
       topK: 1

@@ -440,4 +440,91 @@ body {
   .header-actions button {
     flex: 1;
   }
+}
+
+/* Tone descriptions */
+.tone-description {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.tone-description .description {
+  display: none;
+  padding: 8px;
+  background: #f9fafb;
+  border-radius: 6px;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+.tone-description .description.active {
+  display: block;
+}
+
+/* Show description based on selected tone */
+#defaultToneSelect[value="professional"] ~ .tone-description .description.professional,
+#defaultToneSelect[value="casual"] ~ .tone-description .description.casual,
+#defaultToneSelect[value="romantic"] ~ .tone-description .description.romantic,
+#defaultToneSelect[value="humorous"] ~ .tone-description .description.humorous,
+#defaultToneSelect[value="empathetic"] ~ .tone-description .description.empathetic,
+#defaultToneSelect[value="friendly"] ~ .tone-description .description.friendly,
+#defaultToneSelect[value="enthusiastic"] ~ .tone-description .description.enthusiastic,
+#defaultToneSelect[value="thoughtful"] ~ .tone-description .description.thoughtful {
+  display: block;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .tone-description {
+    color: #9ca3af;
+  }
+  
+  .tone-description .description {
+    background: #1f2937;
+  }
+}
+
+/* Temperature descriptions */
+.temperature-description {
+  margin-top: 12px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.temperature-description .description {
+  display: none;
+  padding: 8px;
+  background: #f9fafb;
+  border-radius: 6px;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+.temperature-description .description.active {
+  display: block;
+}
+
+/* Show description based on temperature value */
+.temperature-description .description.focused.active {
+  display: block;
+}
+
+.temperature-description .description.balanced.active {
+  display: block;
+}
+
+.temperature-description .description.creative.active {
+  display: block;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .temperature-description {
+    color: #9ca3af;
+  }
+  
+  .temperature-description .description {
+    background: #1f2937;
+  }
 } 

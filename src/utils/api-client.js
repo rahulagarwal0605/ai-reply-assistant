@@ -12,17 +12,20 @@ export class LLMApiClient {
   // Generate reply suggestions
   async generateReplies(context, currentInput, style) {
     try {
+      // Use site-specific temperature if available, otherwise use global temperature
+      const temperature = style.temperature ? parseFloat(style.temperature) : this.temperature;
+      
       const prompt = this.buildPrompt(context, currentInput, style);
       
       switch (this.provider.name) {
         case 'OpenAI':
-          return await this.callOpenAI(prompt);
+          return await this.callOpenAI(prompt, temperature);
         case 'Anthropic':
-          return await this.callAnthropic(prompt);
+          return await this.callAnthropic(prompt, temperature);
         case 'Google AI':
-          return await this.callGoogleAI(prompt);
+          return await this.callGoogleAI(prompt, temperature);
         default:
-          return await this.callCustomAPI(prompt);
+          return await this.callCustomAPI(prompt, temperature);
       }
     } catch (error) {
       console.error('API Error:', error);
@@ -34,7 +37,7 @@ export class LLMApiClient {
   buildPrompt(context, currentInput, style) {
     const styleGuide = this.getStyleGuide(style);
     
-    let prompt = `You are an AI assistant helping to generate conversation replies. ${styleGuide}\n\n`;
+    let prompt = `You are an AI assistant helping to generate natural, human-like conversation replies. Your goal is to create responses that feel authentic and conversational, as if written by a real person. ${styleGuide}\n\n`;
     
     if (context && context.length > 0) {
       prompt += 'Previous conversation:\n';
@@ -48,7 +51,7 @@ export class LLMApiClient {
       prompt += `User is typing: "${currentInput}"\n\n`;
     }
     
-    prompt += 'Generate 4 different reply suggestions that continue naturally from the context. Each reply should be different in approach or tone. Return ONLY a JSON object with a "replies" array containing 4 string suggestions. Example format: {"replies": ["suggestion1", "suggestion2", "suggestion3", "suggestion4"]}';
+    prompt += 'Generate 4 different reply suggestions that sound natural and human-like. Each reply should be different in approach or tone. Make them feel authentic and conversational, as if written by a real person. Consider the context and maintain a natural flow. Return ONLY a JSON object with a "replies" array containing 4 string suggestions. Example format: {"replies": ["suggestion1", "suggestion2", "suggestion3", "suggestion4"]}';
     
     return prompt;
   }
@@ -56,18 +59,75 @@ export class LLMApiClient {
   // Get style guide based on settings
   getStyleGuide(style) {
     const guides = {
-      professional: 'Use professional, formal language suitable for business communication.',
-      casual: 'Use casual, friendly language as if talking to a friend.',
-      romantic: 'Use warm, affectionate language suitable for romantic conversations.',
-      humorous: 'Include appropriate humor and wit while being helpful.',
-      empathetic: 'Show understanding and emotional intelligence in responses.'
+      professional: `Use natural, professional language that sounds human and conversational while maintaining professionalism.
+        - Keep it warm but professional
+        - Use natural transitions and flow
+        - Include appropriate business expressions
+        - Maintain a helpful, solution-oriented tone
+        - Avoid overly formal or stiff language`,
+
+      casual: `Use very natural, friendly language as if talking to a close friend.
+        - Include casual expressions and slang naturally
+        - Use contractions (I'm, you're, etc.)
+        - Add personality and warmth
+        - Keep it light and conversational
+        - Feel free to use emojis and casual punctuation
+        - Include natural filler words and expressions`,
+
+      romantic: `Use warm, affectionate language that feels genuine and natural.
+        - Express interest and attraction naturally
+        - Use subtle flirting and playful banter
+        - Show genuine curiosity about the other person
+        - Keep compliments specific and meaningful
+        - Maintain a balance of warmth and respect
+        - Use natural expressions of affection`,
+
+      humorous: `Use natural humor and wit that feels authentic.
+        - Include light jokes and playful banter
+        - Use situational humor when appropriate
+        - Keep it friendly and not offensive
+        - Add personality and charm
+        - Use natural expressions of amusement
+        - Include playful emojis when fitting`,
+
+      empathetic: `Show genuine understanding and emotional intelligence.
+        - Acknowledge feelings naturally
+        - Show genuine care and concern
+        - Use supportive and understanding language
+        - Offer comfort in a natural way
+        - Validate emotions without being overly dramatic
+        - Keep responses warm and personal`,
+
+      friendly: `Use warm, approachable language that builds connection.
+        - Be welcoming and inclusive
+        - Show genuine interest in the conversation
+        - Use natural expressions of friendliness
+        - Keep it positive and encouraging
+        - Add personal touches and warmth
+        - Use casual but respectful language`,
+
+      enthusiastic: `Show natural excitement and energy.
+        - Express genuine enthusiasm
+        - Use positive and energetic language
+        - Include natural expressions of excitement
+        - Keep it authentic and not overdone
+        - Add personality and spark
+        - Use appropriate exclamations naturally`,
+
+      thoughtful: `Show depth and consideration in responses.
+        - Express genuine interest and curiosity
+        - Ask meaningful questions
+        - Share insights naturally
+        - Show careful consideration
+        - Keep it engaging and personal
+        - Use natural expressions of thoughtfulness`
     };
     
-    return guides[style.tone] || guides.professional;
+    return guides[style.tone] || guides.friendly;
   }
 
   // OpenAI API call
-  async callOpenAI(prompt) {
+  async callOpenAI(prompt, temperature) {
     try {
       const response = await fetch(`${this.provider.baseUrl}/chat/completions`, {
         method: 'POST',
@@ -78,7 +138,7 @@ export class LLMApiClient {
             { role: 'system', content: 'You are a helpful assistant that generates conversation replies. Always respond with valid JSON.' },
             { role: 'user', content: prompt }
           ],
-          temperature: this.temperature,
+          temperature: temperature,
           max_tokens: 300,
           response_format: { type: 'json_object' }
         })
@@ -107,7 +167,7 @@ export class LLMApiClient {
   }
 
   // Anthropic API call
-  async callAnthropic(prompt) {
+  async callAnthropic(prompt, temperature) {
     try {
       const response = await fetch(`${this.provider.baseUrl}/messages`, {
         method: 'POST',
@@ -116,7 +176,7 @@ export class LLMApiClient {
           model: this.model,
           messages: [{ role: 'user', content: prompt + '\n\nRemember to respond with valid JSON only.' }],
           max_tokens: 300,
-          temperature: this.temperature
+          temperature: temperature
         })
       });
 
@@ -148,7 +208,7 @@ export class LLMApiClient {
   }
 
   // Google AI API call
-  async callGoogleAI(prompt) {
+  async callGoogleAI(prompt, temperature) {
     try {
       const response = await fetch(
         `${this.provider.baseUrl}/models/${this.model}:generateContent?key=${this.apiKey}`,
@@ -162,7 +222,7 @@ export class LLMApiClient {
               }]
             }],
             generationConfig: {
-              temperature: this.temperature,
+              temperature: temperature,
               maxOutputTokens: 300,
               candidateCount: 1
             }
@@ -201,14 +261,14 @@ export class LLMApiClient {
   }
 
   // Custom API call (generic format)
-  async callCustomAPI(prompt) {
+  async callCustomAPI(prompt, temperature) {
     const response = await fetch(`${this.provider.baseUrl}/completions`, {
       method: 'POST',
       headers: this.provider.headers(this.apiKey),
       body: JSON.stringify({
         model: this.model,
         prompt: prompt,
-        temperature: this.temperature,
+        temperature: temperature,
         max_tokens: 300
       })
     });

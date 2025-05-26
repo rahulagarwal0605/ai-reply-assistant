@@ -67,8 +67,25 @@
             <option value="romantic">Romantic</option>
             <option value="humorous">Humorous</option>
             <option value="empathetic">Empathetic</option>
+            <option value="friendly">Friendly</option>
+            <option value="enthusiastic">Enthusiastic</option>
+            <option value="thoughtful">Thoughtful</option>
           </select>
         </div>
+
+        <div class="style-option">
+          <label for="temperatureSelect">Temperature:</label>
+          <select id="temperatureSelect" class="style-select">
+            <option value="0.3">Focused (0.3)</option>
+            <option value="0.5">Balanced (0.5)</option>
+            <option value="0.7">Creative (0.7)</option>
+            <option value="0.9">Very Creative (0.9)</option>
+          </select>
+          <div class="option-description">
+            Controls response creativity and variation
+          </div>
+        </div>
+
         <div class="style-actions">
           <button class="btn-save" id="saveStyleBtn">Save</button>
           <button class="btn-cancel" id="cancelStyleBtn">Cancel</button>

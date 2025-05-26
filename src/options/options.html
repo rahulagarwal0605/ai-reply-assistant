@@ -69,8 +69,14 @@
           <label for="temperatureInput">Temperature <span class="label-value" id="temperatureValue">0.7</span></label>
           <input type="range" id="temperatureInput" class="form-range" min="0" max="1" step="0.1" value="0.7">
           <div class="range-labels">
-            <span>Focused</span>
-            <span>Creative</span>
+            <span>Focused (0.0)</span>
+            <span>Balanced (0.5)</span>
+            <span>Creative (1.0)</span>
+          </div>
+          <div class="temperature-description">
+            <p class="description focused">More focused and consistent responses, great for professional or technical content.</p>
+            <p class="description balanced">Balanced mix of creativity and consistency, good for general conversation.</p>
+            <p class="description creative">More creative and varied responses, perfect for casual or creative writing.</p>
           </div>
         </div>
 
@@ -94,7 +100,20 @@
             <option value="romantic">Romantic</option>
             <option value="humorous">Humorous</option>
             <option value="empathetic">Empathetic</option>
+            <option value="friendly">Friendly</option>
+            <option value="enthusiastic">Enthusiastic</option>
+            <option value="thoughtful">Thoughtful</option>
           </select>
+          <div class="tone-description">
+            <p class="description professional">Warm and professional language suitable for business communication.</p>
+            <p class="description casual">Relaxed and friendly language with natural expressions and slang.</p>
+            <p class="description romantic">Warm and affectionate language for romantic conversations.</p>
+            <p class="description humorous">Playful and witty language with appropriate humor.</p>
+            <p class="description empathetic">Understanding and supportive language that shows emotional intelligence.</p>
+            <p class="description friendly">Warm and approachable language that builds connection.</p>
+            <p class="description enthusiastic">Energetic and positive language that shows excitement.</p>
+            <p class="description thoughtful">Deep and considerate language that shows genuine interest.</p>
+          </div>
         </div>
 
         <div class="form-group">

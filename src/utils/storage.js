@@ -23,15 +23,17 @@ export const storage = {
     const config = await this.getConfig();
     return config.styles[hostname] || config.styles.default || {
       tone: 'professional',
-      length: 'medium',
-      formality: 'neutral'
+      temperature: '0.7'
     };
   },
 
   // Save site-specific style
   async setStyleForSite(hostname, style) {
     const config = await this.getConfig();
-    config.styles[hostname] = style;
+    config.styles[hostname] = {
+      tone: style.tone,
+      temperature: style.temperature
+    };
     await this.setConfig(config);
   },
 
