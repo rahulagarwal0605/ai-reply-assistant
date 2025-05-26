@@ -17,7 +17,8 @@ const elements = {
   editStyleBtn: document.getElementById('editStyleBtn'),
   styleEditor: document.getElementById('styleEditor'),
   toneSelect: document.getElementById('toneSelect'),
-  temperatureSelect: document.getElementById('temperatureSelect'),
+  temperatureInput: document.getElementById('temperatureInput'),
+  temperatureValue: document.getElementById('temperatureValue'),
   saveStyleBtn: document.getElementById('saveStyleBtn'),
   cancelStyleBtn: document.getElementById('cancelStyleBtn'),
   playgroundLink: document.getElementById('playgroundLink')
@@ -45,7 +46,9 @@ async function init() {
       // Load current style for site
       const style = await storage.getStyleForSite(currentHostname);
       elements.toneSelect.value = style.tone || 'professional';
-      elements.temperatureSelect.value = style.temperature || '0.7';
+      elements.temperatureInput.value = style.temperature || '0.7';
+      elements.temperatureValue.textContent = style.temperature || '0.7';
+      updateTemperatureDescription(style.temperature || '0.7');
     } catch (e) {
       elements.siteName.textContent = 'Invalid URL';
     }
@@ -90,6 +93,23 @@ async function loadStats() {
   }
 }
 
+// Update temperature description
+function updateTemperatureDescription(value) {
+  const descriptions = document.querySelectorAll('.temperature-description .description');
+  descriptions.forEach(desc => {
+    desc.classList.remove('active');
+  });
+  
+  const temp = parseFloat(value);
+  if (temp <= 0.3) {
+    document.querySelector('.temperature-description .description.focused').classList.add('active');
+  } else if (temp <= 0.7) {
+    document.querySelector('.temperature-description .description.balanced').classList.add('active');
+  } else {
+    document.querySelector('.temperature-description .description.creative').classList.add('active');
+  }
+}
+
 // Setup event listeners
 function setupEventListeners() {
   // Settings button
@@ -108,11 +128,17 @@ function setupEventListeners() {
     elements.editStyleBtn.style.display = 'none';
   });
   
+  // Temperature slider
+  elements.temperatureInput.addEventListener('input', (e) => {
+    elements.temperatureValue.textContent = e.target.value;
+    updateTemperatureDescription(e.target.value);
+  });
+  
   // Save style button
   elements.saveStyleBtn.addEventListener('click', async () => {
     const style = {
       tone: elements.toneSelect.value,
-      temperature: elements.temperatureSelect.value
+      temperature: elements.temperatureInput.value
     };
     
     await storage.setStyleForSite(currentHostname, style);
@@ -131,7 +157,9 @@ function setupEventListeners() {
     // Reset to original values
     const style = await storage.getStyleForSite(currentHostname);
     elements.toneSelect.value = style.tone || 'professional';
-    elements.temperatureSelect.value = style.temperature || '0.7';
+    elements.temperatureInput.value = style.temperature || '0.7';
+    elements.temperatureValue.textContent = style.temperature || '0.7';
+    updateTemperatureDescription(style.temperature || '0.7');
     
     elements.styleEditor.style.display = 'none';
     elements.editStyleBtn.style.display = 'block';

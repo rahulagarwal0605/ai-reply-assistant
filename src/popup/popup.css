@@ -258,6 +258,83 @@ body {
   box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
 }
 
+/* Temperature slider styles */
+.form-range {
+  width: 100%;
+  height: 6px;
+  padding: 0;
+  background-color: #e5e7eb;
+  border-radius: 3px;
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 12px 0;
+}
+
+.form-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #6366f1;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.form-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #6366f1;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.form-range::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  background: #4f46e5;
+}
+
+.form-range::-moz-range-thumb:hover {
+  transform: scale(1.1);
+  background: #4f46e5;
+}
+
+.range-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.label-value {
+  font-weight: 500;
+  color: #6366f1;
+  margin-left: 4px;
+}
+
+/* Temperature descriptions */
+.temperature-description {
+  margin-top: 12px;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.temperature-description .description {
+  display: none;
+  padding: 8px;
+  background: #f9fafb;
+  border-radius: 6px;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+.temperature-description .description.active {
+  display: block;
+}
+
 .option-description {
   font-size: 11px;
   color: #6b7280;
@@ -454,5 +531,37 @@ body {
   .popup-footer {
     background: #1f2937;
     border-top-color: #374151;
+  }
+
+  .form-range {
+    background-color: #4b5563;
+  }
+
+  .form-range::-webkit-slider-thumb {
+    background: #6366f1;
+  }
+
+  .form-range::-moz-range-thumb {
+    background: #6366f1;
+  }
+
+  .range-labels {
+    color: #9ca3af;
+  }
+
+  .temperature-description {
+    color: #9ca3af;
+  }
+
+  .temperature-description .description {
+    background: #1f2937;
+  }
+
+  .style-option label {
+    color: #e5e7eb;
+  }
+
+  .label-value {
+    color: #818cf8;
   }
 } 
