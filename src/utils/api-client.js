@@ -24,6 +24,14 @@ export class LLMApiClient {
           return await this.callAnthropic(prompt, temperature);
         case 'Google AI':
           return await this.callGoogleAI(prompt, temperature);
+        case 'Mistral AI':
+          return await this.callMistralAI(prompt, temperature);
+        case 'OpenRouter':
+          return await this.callOpenRouter(prompt, temperature);
+        case 'Cloudflare Workers AI':
+          return await this.callCloudflare(prompt, temperature);
+        case 'Together AI':
+          return await this.callTogether(prompt, temperature);
         default:
           return await this.callCustomAPI(prompt, temperature);
       }
@@ -252,6 +260,166 @@ export class LLMApiClient {
         console.error('Failed to parse Google AI response:', data);
         throw new Error('Invalid response format from API. Please try again.');
       }
+    } catch (error) {
+      if (error.message.includes('Failed to fetch')) {
+        throw new Error('Network error. Please check your internet connection.');
+      }
+      throw error;
+    }
+  }
+
+  // Mistral AI API call
+  async callMistralAI(prompt, temperature) {
+    try {
+      const response = await fetch(`${this.provider.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: this.provider.headers(this.apiKey),
+        body: JSON.stringify({
+          model: this.model,
+          messages: [
+            { role: 'system', content: 'You are a helpful assistant that generates conversation replies. Always respond with valid JSON.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: temperature,
+          max_tokens: 300,
+          response_format: { type: 'json_object' }
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        if (error.error?.code === 'invalid_api_key') {
+          throw new Error('Invalid API key. Please check your Mistral AI API key in settings.');
+        } else if (error.error?.code === 'insufficient_quota') {
+          throw new Error('API quota exceeded. Please check your Mistral AI account usage.');
+        } else {
+          throw new Error(`Mistral AI API error: ${error.error?.message || response.statusText}`);
+        }
+      }
+
+      const data = await response.json();
+      const content = JSON.parse(data.choices[0].message.content);
+      return content.replies || [];
+    } catch (error) {
+      if (error.message.includes('Failed to fetch')) {
+        throw new Error('Network error. Please check your internet connection.');
+      }
+      throw error;
+    }
+  }
+
+  // OpenRouter API call
+  async callOpenRouter(prompt, temperature) {
+    try {
+      const response = await fetch(`${this.provider.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: this.provider.headers(this.apiKey),
+        body: JSON.stringify({
+          model: this.model,
+          messages: [
+            { role: 'system', content: 'You are a helpful assistant that generates conversation replies. Always respond with valid JSON.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: temperature,
+          max_tokens: 300,
+          response_format: { type: 'json_object' }
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        if (error.error?.code === 'invalid_api_key') {
+          throw new Error('Invalid API key. Please check your OpenRouter API key in settings.');
+        } else if (error.error?.code === 'insufficient_quota') {
+          throw new Error('API quota exceeded. Please check your OpenRouter account usage.');
+        } else {
+          throw new Error(`OpenRouter API error: ${error.error?.message || response.statusText}`);
+        }
+      }
+
+      const data = await response.json();
+      const content = JSON.parse(data.choices[0].message.content);
+      return content.replies || [];
+    } catch (error) {
+      if (error.message.includes('Failed to fetch')) {
+        throw new Error('Network error. Please check your internet connection.');
+      }
+      throw error;
+    }
+  }
+
+  // Cloudflare Workers AI API call
+  async callCloudflare(prompt, temperature) {
+    try {
+      const response = await fetch(`${this.provider.baseUrl}/${this.model}`, {
+        method: 'POST',
+        headers: this.provider.headers(this.apiKey),
+        body: JSON.stringify({
+          prompt: prompt + '\n\nIMPORTANT: Respond ONLY with a valid JSON object containing a "replies" array. No markdown, no explanation, just the JSON object.',
+          temperature: temperature,
+          max_tokens: 300
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        if (error.errors?.[0]?.code === 'invalid_api_key') {
+          throw new Error('Invalid API key. Please check your Cloudflare API key in settings.');
+        } else if (error.errors?.[0]?.code === 'quota_exceeded') {
+          throw new Error('API quota exceeded. Please check your Cloudflare account usage.');
+        } else {
+          throw new Error(`Cloudflare API error: ${error.errors?.[0]?.message || response.statusText}`);
+        }
+      }
+
+      const data = await response.json();
+      try {
+        const content = JSON.parse(data.response);
+        return content.replies || [];
+      } catch (e) {
+        console.error('Failed to parse Cloudflare response:', data.response);
+        throw new Error('Invalid response format from API. Please try again.');
+      }
+    } catch (error) {
+      if (error.message.includes('Failed to fetch')) {
+        throw new Error('Network error. Please check your internet connection.');
+      }
+      throw error;
+    }
+  }
+
+  // Together AI API call
+  async callTogether(prompt, temperature) {
+    try {
+      const response = await fetch(`${this.provider.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: this.provider.headers(this.apiKey),
+        body: JSON.stringify({
+          model: this.model,
+          messages: [
+            { role: 'system', content: 'You are a helpful assistant that generates conversation replies. Always respond with valid JSON.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: temperature,
+          max_tokens: 300,
+          response_format: { type: 'json_object' }
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        if (error.error?.code === 'invalid_api_key') {
+          throw new Error('Invalid API key. Please check your Together AI API key in settings.');
+        } else if (error.error?.code === 'insufficient_quota') {
+          throw new Error('API quota exceeded. Please check your Together AI account usage.');
+        } else {
+          throw new Error(`Together AI API error: ${error.error?.message || response.statusText}`);
+        }
+      }
+
+      const data = await response.json();
+      const content = JSON.parse(data.choices[0].message.content);
+      return content.replies || [];
     } catch (error) {
       if (error.message.includes('Failed to fetch')) {
         throw new Error('Network error. Please check your internet connection.');

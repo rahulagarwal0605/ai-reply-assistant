@@ -97,6 +97,35 @@ const siteConfig = {
             return context;
         }
     },
+    'www.linkedin.com': {
+        insertText: (text) => {
+            const inputBox = document.querySelector('.msg-form__contenteditable[contenteditable="true"]');
+            if (!inputBox) return;
+            
+            inputBox.focus();
+            inputBox.innerHTML = `<p>${text}</p>`;
+            inputBox.dispatchEvent(new Event('input', { bubbles: true }));
+        },
+        extractMessages: () => {
+            const messages = [];
+            const nodes = document.querySelectorAll('li.msg-s-message-list__event .msg-s-event-listitem');
+            
+            nodes.forEach(node => {
+                const container = node.closest('li.msg-s-message-list__event');
+                const nameEl = container.querySelector('.msg-s-message-group__name');
+                const bodyEl = container.querySelector('.msg-s-event-listitem__body');
+                
+                if (nameEl && bodyEl) {
+                    messages.push({
+                        sender: nameEl.innerText.trim(),
+                        text: bodyEl.innerText.trim().replace(/\n/g, ' ')
+                    });
+                }
+            });
+            
+            return messages;
+        }
+    },
     default: {
         insertText: (text) => {
             if (currentInput.isContentEditable) {
