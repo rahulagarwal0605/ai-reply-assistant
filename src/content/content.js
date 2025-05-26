@@ -4,6 +4,145 @@ let suggestionsPopup = null;
 let debounceTimer = null;
 let isGenerating = false;
 
+// Inject styles
+function injectStyles() {
+  const style = document.createElement('style');
+  style.textContent = `
+    .ai-reply-suggestions {
+      position: fixed;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      z-index: 999999;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: none;
+      max-height: 300px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .ai-reply-suggestions.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .ai-reply-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+      background: linear-gradient(to bottom, #fafafa, #f8f8f8);
+    }
+
+    .ai-reply-title {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .ai-reply-status {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 12px;
+    }
+
+    .ai-reply-status.loading {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .ai-reply-status.ready {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .ai-reply-status.error {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .ai-reply-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .ai-reply-item {
+      padding: 12px 14px;
+      margin: 4px 0;
+      background: #f9fafb;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #374151;
+      transition: all 0.2s ease;
+    }
+
+    .ai-reply-item:hover {
+      background: #e5e7eb;
+      border-color: #d1d5db;
+    }
+
+    .ai-reply-footer {
+      padding: 8px 16px;
+      border-top: 1px solid rgba(0, 0, 0, 0.06);
+      background: #f9fafb;
+    }
+
+    .ai-reply-hint {
+      font-size: 11px;
+      color: #6b7280;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .ai-reply-suggestions {
+        background: #1f2937;
+        border-color: rgba(255, 255, 255, 0.1);
+      }
+
+      .ai-reply-header {
+        background: linear-gradient(to bottom, #1f2937, #111827);
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+      }
+
+      .ai-reply-title {
+        color: #f3f4f6;
+      }
+
+      .ai-reply-item {
+        background: #374151;
+        color: #e5e7eb;
+      }
+
+      .ai-reply-item:hover {
+        background: #4b5563;
+        border-color: #6b7280;
+      }
+
+      .ai-reply-footer {
+        background: #111827;
+        border-top-color: rgba(255, 255, 255, 0.1);
+      }
+
+      .ai-reply-hint {
+        color: #9ca3af;
+      }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 // Detect input fields and text areas
 function detectInputFields() {
   const inputs = document.querySelectorAll('input[type="text"], input[type="search"], textarea, [contenteditable="true"]');
@@ -157,6 +296,7 @@ function showSuggestionsPopup() {
   
   popup.style.left = `${rect.left}px`;
   popup.style.width = `${Math.min(rect.width, 400)}px`;
+  popup.style.display = 'block';
   popup.classList.add('visible');
   
   generateSuggestions();
@@ -166,6 +306,9 @@ function showSuggestionsPopup() {
 function hideSuggestionsPopup() {
   if (suggestionsPopup) {
     suggestionsPopup.classList.remove('visible');
+    setTimeout(() => {
+      suggestionsPopup.style.display = 'none';
+    }, 300);
   }
 }
 
@@ -196,9 +339,9 @@ async function generateSuggestions() {
     statusEl.className = 'ai-reply-status ready';
   } catch (error) {
     console.error('Error generating suggestions:', error);
-    statusEl.textContent = error.message.includes('not configured') ? 'Not configured' : 'Error';
+    statusEl.textContent = error.message;
     statusEl.className = 'ai-reply-status error';
-    listEl.innerHTML = '<div class="ai-reply-error">Please configure the extension in settings</div>';
+    listEl.innerHTML = `<div class="ai-reply-error">${error.message}</div>`;
   } finally {
     isGenerating = false;
   }
@@ -234,22 +377,57 @@ function displaySuggestions(suggestions) {
 
 // Insert suggestion into input
 function insertSuggestion(suggestion) {
-  if (!currentInput) return;
+  const hostname = window.location.hostname;
   
-  if (currentInput.tagName === 'INPUT' || currentInput.tagName === 'TEXTAREA') {
-    currentInput.value = suggestion;
-    currentInput.dispatchEvent(new Event('input', { bubbles: true }));
+  if (hostname === 'web.whatsapp.com') {
+    // WhatsApp specific implementation
+    const dataTransfer = new DataTransfer();
+    dataTransfer.setData('text', suggestion);
+    const event = new ClipboardEvent('paste', {
+      clipboardData: dataTransfer,
+      bubbles: true
+    });
+    const el = document.querySelector('#main .copyable-area [contenteditable="true"][role="textbox"]');
+    if (el) {
+      el.dispatchEvent(event);
+    }
   } else {
-    currentInput.textContent = suggestion;
-    currentInput.dispatchEvent(new Event('input', { bubbles: true }));
+    // For other platforms
+    const activeElement = document.activeElement;
+    
+    if (activeElement.tagName === 'TEXTAREA' || activeElement.tagName === 'INPUT') {
+      const start = activeElement.selectionStart;
+      const end = activeElement.selectionEnd;
+      const text = activeElement.value;
+      
+      activeElement.value = text.substring(0, start) + suggestion + text.substring(end);
+      activeElement.selectionStart = activeElement.selectionEnd = start + suggestion.length;
+      activeElement.dispatchEvent(new Event('input', { bubbles: true }));
+    } else if (activeElement.isContentEditable) {
+      const selection = window.getSelection();
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+      const textNode = document.createTextNode(suggestion);
+      range.insertNode(textNode);
+      range.setStartAfter(textNode);
+      range.setEndAfter(textNode);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      activeElement.dispatchEvent(new InputEvent('input', {
+        bubbles: true,
+        cancelable: true,
+        inputType: 'insertText',
+        data: suggestion
+      }));
+    }
   }
   
-  currentInput.focus();
   hideSuggestionsPopup();
 }
 
 // Initialize
 function initialize() {
+  injectStyles();
   detectInputFields();
   
   // Re-detect inputs periodically for dynamic content
