@@ -21,7 +21,8 @@ const elements = {
   temperatureValue: document.getElementById('temperatureValue'),
   saveStyleBtn: document.getElementById('saveStyleBtn'),
   cancelStyleBtn: document.getElementById('cancelStyleBtn'),
-  playgroundLink: document.getElementById('playgroundLink')
+  playgroundLink: document.getElementById('playgroundLink'),
+  siteToggle: document.getElementById('siteToggle')
 };
 
 let currentTab = null;
@@ -49,6 +50,10 @@ async function init() {
       elements.temperatureInput.value = style.temperature || '0.7';
       elements.temperatureValue.textContent = style.temperature || '0.7';
       updateTemperatureDescription(style.temperature || '0.7');
+
+      // Load disabled sites and set toggle state
+      const { disabledSites = [] } = await chrome.storage.local.get('disabledSites');
+      elements.siteToggle.checked = !disabledSites.includes(currentHostname);
     } catch (e) {
       elements.siteName.textContent = 'Invalid URL';
     }
@@ -116,6 +121,53 @@ function updateTemperatureDescription(value) {
   }
 }
 
+// Load current site settings
+async function loadCurrentSiteSettings() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const hostname = new URL(tab.url).hostname;
+    elements.siteName.textContent = hostname;
+
+    const { disabledSites = [] } = await chrome.storage.local.get('disabledSites');
+    elements.siteToggle.checked = !disabledSites.includes(hostname);
+  } catch (error) {
+    console.error('Error loading site settings:', error);
+  }
+}
+
+// Toggle site enablement
+async function toggleSiteEnablement() {
+  try {
+    if (!currentHostname) return;
+    
+    const { disabledSites = [] } = await chrome.storage.local.get('disabledSites');
+    
+    if (elements.siteToggle.checked) {
+      // Enable site
+      const newDisabledSites = disabledSites.filter(site => site !== currentHostname);
+      await chrome.storage.local.set({ disabledSites: newDisabledSites });
+    } else {
+      // Disable site
+      if (!disabledSites.includes(currentHostname)) {
+        disabledSites.push(currentHostname);
+        await chrome.storage.local.set({ disabledSites });
+      }
+    }
+
+    // Notify content script
+    if (currentTab?.id) {
+      chrome.tabs.sendMessage(currentTab.id, {
+        action: 'toggleEnabled',
+        enabled: elements.siteToggle.checked
+      });
+    }
+  } catch (error) {
+    console.error('Error toggling site:', error);
+    // Revert toggle state on error
+    elements.siteToggle.checked = !elements.siteToggle.checked;
+  }
+}
+
 // Setup event listeners
 function setupEventListeners() {
   // Settings button
@@ -178,6 +230,9 @@ function setupEventListeners() {
       url: chrome.runtime.getURL('src/playground/index.html')
     });
   });
+  
+  // Site toggle
+  elements.siteToggle.addEventListener('change', toggleSiteEnablement);
 }
 
 // Initialize when DOM is ready

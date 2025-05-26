@@ -3,6 +3,7 @@ let currentInput = null;
 let suggestionsPopup = null;
 let debounceTimer = null;
 let isGenerating = false;
+let isEnabled = true;
 
 // Site-specific configurations
 const siteConfig = {
@@ -335,12 +336,14 @@ function detectInputFields() {
             input.setAttribute('data-ai-reply-enabled', 'true');
             
             input.addEventListener('click', () => {
+                if (!isEnabled) return;
                 currentInput = input;
                 extractConversationContext();
                 showSuggestionsPopup();
             });
             
             input.addEventListener('focus', () => {
+                if (!isEnabled) return;
                 currentInput = input;
                 extractConversationContext();
                 if (input.value || input.innerText) {
@@ -349,10 +352,18 @@ function detectInputFields() {
             });
             
             input.addEventListener('input', () => {
+                if (!isEnabled) return;
                 currentInput = input;
                 extractConversationContext();
                 if (input.value || input.innerText) {
                     showSuggestionsPopup();
+                }
+            });
+
+            // Add keydown event listener for Escape key
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    hideSuggestionsPopup();
                 }
             });
         }
@@ -372,7 +383,7 @@ function createSuggestionsPopup() {
         </div>
         <div class="ai-reply-list"></div>
         <div class="ai-reply-footer">
-            <div class="ai-reply-hint">Press Ctrl+Space to regenerate</div>
+            <div class="ai-reply-hint">Press Esc to hide • Ctrl+Space to regenerate</div>
         </div>
     `;
     
@@ -381,11 +392,11 @@ function createSuggestionsPopup() {
 
 // Show suggestions popup
 function showSuggestionsPopup() {
-    if (!suggestionsPopup) {
+    if (!isEnabled || !suggestionsPopup) {
         createSuggestionsPopup();
     }
     
-    if (currentInput) {
+    if (currentInput && isEnabled) {
         const rect = currentInput.getBoundingClientRect();
         const viewportHeight = window.innerHeight;
         const spaceBelow = viewportHeight - rect.bottom;
@@ -456,7 +467,7 @@ function displaySuggestions(suggestions) {
 
 // Generate suggestions from AI
 async function generateSuggestions() {
-    if (isGenerating) return;
+    if (!isEnabled || isGenerating) return;
     
     isGenerating = true;
     const statusEl = suggestionsPopup.querySelector('.ai-reply-status');
@@ -493,21 +504,52 @@ async function generateSuggestions() {
 }
 
 // Initialize
-function initialize() {
-    injectStyles();
-    detectInputFields();
-    
-    setInterval(detectInputFields, 2000);
-    
-    const observer = new MutationObserver(() => {
+async function initialize() {
+    // Check if site is enabled
+    const hostname = window.location.hostname;
+    const { disabledSites = [] } = await chrome.storage.local.get('disabledSites');
+    isEnabled = !disabledSites.includes(hostname);
+
+    if (isEnabled) {
+        injectStyles();
         detectInputFields();
-    });
-    
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
+        
+        setInterval(detectInputFields, 2000);
+        
+        const observer = new MutationObserver(() => {
+            detectInputFields();
+        });
+        
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    }
 }
+
+// Listen for toggle messages
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'toggleEnabled') {
+        isEnabled = message.enabled;
+        
+        if (isEnabled) {
+            // Enable extension
+            injectStyles();
+            detectInputFields();
+        } else {
+            // Disable extension
+            if (suggestionsPopup) {
+                suggestionsPopup.remove();
+                suggestionsPopup = null;
+            }
+            // Remove all event listeners
+            const inputs = document.querySelectorAll('[data-ai-reply-enabled]');
+            inputs.forEach(input => {
+                input.removeAttribute('data-ai-reply-enabled');
+            });
+        }
+    }
+});
 
 // Start when DOM is ready
 if (document.readyState === 'loading') {

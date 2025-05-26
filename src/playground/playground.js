@@ -86,7 +86,7 @@ function createSuggestionsPopup() {
     </div>
     <div class="ai-reply-list"></div>
     <div class="ai-reply-footer">
-      <span class="ai-reply-hint">Ctrl+Space to regenerate</span>
+      <span class="ai-reply-hint">Press Esc to hide • Ctrl+Space to regenerate</span>
     </div>
   `;
   popup.style.display = 'none';
@@ -244,6 +244,10 @@ function setupEventListeners() {
       e.preventDefault();
       showSuggestionsPopup();
       generateSuggestions();
+    }
+    // Handle Escape key to hide suggestions
+    if (e.key === 'Escape') {
+      hideSuggestionsPopup();
     }
   });
   

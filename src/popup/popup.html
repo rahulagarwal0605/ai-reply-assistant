@@ -52,9 +52,18 @@
 
     <!-- Current Site Settings -->
     <section class="site-section" id="siteSection">
-      <h2 class="section-title">Current Site Style</h2>
+      <div class="site-header">
+        <h3>Current Site</h3>
+        <div class="site-toggle">
+          <label class="switch">
+            <input type="checkbox" id="siteToggle" checked>
+            <span class="slider round"></span>
+          </label>
+          <span class="toggle-label">Enable on this site</span>
+        </div>
+      </div>
       <div class="site-info">
-        <span class="site-name" id="siteName">Loading...</span>
+        <span id="siteName">Loading...</span>
         <button class="edit-style-btn" id="editStyleBtn">Edit Style</button>
       </div>
       
