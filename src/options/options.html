@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Reply Assistant - Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-content">
+        <h1 class="title">
+          <span class="logo">✨</span>
+          AI Reply Assistant Settings
+        </h1>
+        <div class="header-actions">
+          <button class="btn-secondary" id="exportBtn">Export Config</button>
+          <button class="btn-secondary" id="importBtn">Import Config</button>
+          <input type="file" id="importFile" accept=".json" style="display: none;">
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- API Configuration Section -->
+      <section class="card">
+        <h2 class="card-title">LLM API Configuration</h2>
+        
+        <div class="form-group">
+          <label for="providerSelect">Provider</label>
+          <select id="providerSelect" class="form-control">
+            <option value="">Select a provider...</option>
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic (Claude)</option>
+            <option value="google">Google AI (Gemini)</option>
+            <option value="custom">Custom API</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="apiKeyInput">API Key</label>
+          <div class="input-group">
+            <input type="password" id="apiKeyInput" class="form-control" placeholder="Enter your API key">
+            <button class="btn-icon" id="toggleApiKey" title="Show/Hide API Key">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group" id="modelGroup" style="display: none;">
+          <label for="modelSelect">Model</label>
+          <select id="modelSelect" class="form-control">
+            <option value="">Select a model...</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="customUrlGroup" style="display: none;">
+          <label for="customUrlInput">API Base URL</label>
+          <input type="url" id="customUrlInput" class="form-control" placeholder="https://api.example.com/v1">
+        </div>
+
+        <div class="form-group">
+          <label for="temperatureInput">Temperature <span class="label-value" id="temperatureValue">0.7</span></label>
+          <input type="range" id="temperatureInput" class="form-range" min="0" max="1" step="0.1" value="0.7">
+          <div class="range-labels">
+            <span>Focused</span>
+            <span>Creative</span>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn-primary" id="saveConfigBtn">Save Configuration</button>
+          <button class="btn-secondary" id="testConfigBtn">Test Connection</button>
+        </div>
+
+        <div class="alert" id="configAlert" style="display: none;"></div>
+      </section>
+
+      <!-- Default Style Settings -->
+      <section class="card">
+        <h2 class="card-title">Default Reply Style</h2>
+        
+        <div class="form-group">
+          <label for="defaultToneSelect">Default Tone</label>
+          <select id="defaultToneSelect" class="form-control">
+            <option value="professional">Professional</option>
+            <option value="casual">Casual</option>
+            <option value="romantic">Romantic</option>
+            <option value="humorous">Humorous</option>
+            <option value="empathetic">Empathetic</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="defaultLengthSelect">Default Length</label>
+          <select id="defaultLengthSelect" class="form-control">
+            <option value="short">Short (1-2 sentences)</option>
+            <option value="medium">Medium (2-4 sentences)</option>
+            <option value="long">Long (4+ sentences)</option>
+          </select>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn-primary" id="saveStyleBtn">Save Default Style</button>
+        </div>
+      </section>
+
+      <!-- Advanced Settings -->
+      <section class="card">
+        <h2 class="card-title">Advanced Settings</h2>
+        
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="autoDetectContext" checked>
+            <span>Automatically detect conversation context</span>
+          </label>
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="showOnFocus" checked>
+            <span>Show suggestions when input is focused</span>
+          </label>
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="enableShortcuts" checked>
+            <span>Enable keyboard shortcuts (Ctrl+Space)</span>
+          </label>
+        </div>
+
+        <div class="form-group">
+          <label for="debounceDelay">Typing delay (ms)</label>
+          <input type="number" id="debounceDelay" class="form-control" min="100" max="2000" step="100" value="500">
+        </div>
+      </section>
+
+      <!-- About Section -->
+      <section class="card">
+        <h2 class="card-title">About</h2>
+        <div class="about-content">
+          <p>AI Reply Assistant v1.0.0</p>
+          <p>An intelligent browser extension that helps you craft perfect replies using AI.</p>
+          <div class="about-links">
+            <a href="https://github.com/yourusername/ai-reply-assistant" target="_blank">GitHub Repository</a>
+            <a href="#" id="privacyLink">Privacy Policy</a>
+            <a href="#" id="resetBtn">Reset All Settings</a>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html> 

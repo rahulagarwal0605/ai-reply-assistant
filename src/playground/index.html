@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Reply Assistant - Playground</title>
+  <link rel="stylesheet" href="playground.css">
+  <link rel="stylesheet" href="../styles/content.css">
+</head>
+<body>
+  <div class="playground-container">
+    <!-- Header -->
+    <header class="playground-header">
+      <div class="header-content">
+        <h1 class="title">
+          <span class="logo">✨</span>
+          AI Reply Assistant Playground
+        </h1>
+        <div class="header-description">
+          Test the extension with different conversation scenarios
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <div class="chat-container">
+        <!-- Scenario Selector -->
+        <div class="scenario-selector">
+          <label for="scenarioSelect">Choose a scenario:</label>
+          <select id="scenarioSelect" class="scenario-select">
+            <option value="professional">Professional Email</option>
+            <option value="slack">Slack Conversation</option>
+            <option value="dating">Dating App Chat</option>
+            <option value="customer">Customer Support</option>
+            <option value="social">Social Media</option>
+            <option value="custom">Custom Scenario</option>
+          </select>
+          <button class="btn-secondary" id="clearChatBtn">Clear Chat</button>
+        </div>
+
+        <!-- Chat Messages -->
+        <div class="chat-messages" id="chatMessages">
+          <div class="chat-welcome">
+            <h2>Welcome to the AI Reply Assistant Playground!</h2>
+            <p>Select a scenario above or start typing to test the extension.</p>
+            <p class="hint">💡 The AI assistant will suggest replies as you type in the input field below.</p>
+          </div>
+        </div>
+
+        <!-- Chat Input -->
+        <div class="chat-input-container">
+          <div class="chat-input-wrapper">
+            <textarea 
+              id="chatInput" 
+              class="chat-input" 
+              placeholder="Type your message here..."
+              rows="3"
+            ></textarea>
+            <button class="send-btn" id="sendBtn">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </button>
+          </div>
+          <div class="input-actions">
+            <span class="char-count" id="charCount">0</span>
+            <button class="btn-icon" id="emojiBtn" title="Add emoji">😊</button>
+            <button class="btn-icon" id="attachBtn" title="Attach file">📎</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Info Panel -->
+      <aside class="info-panel">
+        <div class="info-card">
+          <h3>Extension Status</h3>
+          <div class="status-info" id="extensionStatus">
+            <div class="status-item">
+              <span class="status-label">Extension:</span>
+              <span class="status-value" id="extensionState">Checking...</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">API Config:</span>
+              <span class="status-value" id="apiState">Checking...</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-card">
+          <h3>Test Features</h3>
+          <div class="feature-list">
+            <label class="feature-item">
+              <input type="checkbox" id="autoSuggest" checked>
+              <span>Auto-suggest on typing</span>
+            </label>
+            <label class="feature-item">
+              <input type="checkbox" id="contextAware" checked>
+              <span>Context-aware suggestions</span>
+            </label>
+            <label class="feature-item">
+              <input type="checkbox" id="animateMessages" checked>
+              <span>Animate messages</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="info-card">
+          <h3>Keyboard Shortcuts</h3>
+          <div class="shortcut-list">
+            <div class="shortcut-item">
+              <kbd>Ctrl</kbd> + <kbd>Space</kbd>
+              <span>Regenerate suggestions</span>
+            </div>
+            <div class="shortcut-item">
+              <kbd>Tab</kbd>
+              <span>Select suggestion</span>
+            </div>
+            <div class="shortcut-item">
+              <kbd>Enter</kbd>
+              <span>Send message</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-card">
+          <h3>Tips</h3>
+          <ul class="tips-list">
+            <li>The extension detects conversation context automatically</li>
+            <li>Different scenarios will trigger different reply styles</li>
+            <li>You can customize the tone in the extension settings</li>
+            <li>Try typing partial messages to see suggestions update</li>
+          </ul>
+        </div>
+      </aside>
+    </main>
+
+    <!-- Footer -->
+    <footer class="playground-footer">
+      <p>This playground simulates various chat interfaces to test the AI Reply Assistant extension.</p>
+      <p>
+        <a href="#" id="settingsLink">Extension Settings</a> •
+        <a href="https://github.com/yourusername/ai-reply-assistant" target="_blank">Documentation</a>
+      </p>
+    </footer>
+  </div>
+
+  <!-- Emoji Picker (hidden by default) -->
+  <div class="emoji-picker" id="emojiPicker" style="display: none;">
+    <div class="emoji-grid">
+      <span class="emoji-item">😊</span>
+      <span class="emoji-item">😂</span>
+      <span class="emoji-item">❤️</span>
+      <span class="emoji-item">👍</span>
+      <span class="emoji-item">🎉</span>
+      <span class="emoji-item">🤔</span>
+      <span class="emoji-item">😎</span>
+      <span class="emoji-item">🙏</span>
+      <span class="emoji-item">💯</span>
+      <span class="emoji-item">🔥</span>
+      <span class="emoji-item">✨</span>
+      <span class="emoji-item">🚀</span>
+    </div>
+  </div>
+
+  <script type="module" src="playground.js"></script>
+</body>
+</html> 
