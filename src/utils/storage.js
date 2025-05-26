@@ -57,5 +57,43 @@ export const storage = {
   async isConfigured() {
     const config = await this.getConfig();
     return config.isConfigured && config.provider && config.apiKey && config.model;
+  },
+
+  // Get today's stats
+  async getStats() {
+    const today = new Date().toDateString();
+    const result = await chrome.storage.local.get(['stats']);
+    const stats = result.stats || { date: today, suggestions: 0, sites: {} };
+    
+    // Reset stats if it's a new day
+    if (stats.date !== today) {
+      stats.date = today;
+      stats.suggestions = 0;
+      stats.sites = {};
+    }
+    
+    return stats;
+  },
+
+  // Update stats
+  async updateStats(hostname) {
+    const stats = await this.getStats();
+    
+    // Increment suggestions count
+    stats.suggestions = (stats.suggestions || 0) + 1;
+    
+    // Update sites count
+    if (!stats.sites[hostname]) {
+      stats.sites[hostname] = {
+        firstSeen: new Date().toISOString(),
+        suggestions: 0
+      };
+    }
+    stats.sites[hostname].suggestions++;
+    
+    // Save updated stats
+    await chrome.storage.local.set({ stats });
+    
+    return stats;
   }
 }; 

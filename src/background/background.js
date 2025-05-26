@@ -105,6 +105,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             request.currentInput,
             style
           );
+
+          // Update stats for non-playground requests
+          if (request.hostname !== 'playground.test') {
+            await storage.updateStats(request.hostname);
+          }
           
           sendResponse({ replies });
           break;
@@ -146,12 +151,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           sendResponse({ error: 'Unknown action' });
       }
     } catch (error) {
-      console.error('Background error:', error);
+      console.error('Error handling message:', error);
       sendResponse({ error: error.message });
     }
   })();
-  
-  return true; // Keep message channel open for async response
+  return true; // Keep the message channel open for async response
 });
 
 // Clean up context when tab is closed

@@ -80,14 +80,20 @@ function updateStatus(isConfigured) {
 
 // Load statistics
 async function loadStats() {
-  // Get today's stats from storage
-  const today = new Date().toDateString();
-  const stats = await chrome.storage.local.get(['stats']);
-  
-  if (stats.stats && stats.stats.date === today) {
-    elements.suggestionsCount.textContent = stats.stats.suggestions || 0;
-    elements.sitesCount.textContent = Object.keys(stats.stats.sites || {}).length;
-  } else {
+  try {
+    const stats = await storage.getStats();
+    
+    // Update suggestions count
+    elements.suggestionsCount.textContent = stats.suggestions || 0;
+    
+    // Update sites count
+    const activeSites = Object.keys(stats.sites || {}).length;
+    elements.sitesCount.textContent = activeSites;
+    
+    // Update stats section visibility
+    elements.statsSection.style.display = 'grid';
+  } catch (error) {
+    console.error('Error loading stats:', error);
     elements.suggestionsCount.textContent = '0';
     elements.sitesCount.textContent = '0';
   }
