@@ -19,7 +19,7 @@ function injectStyles() {
       transform: translateY(10px);
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       pointer-events: none;
-      max-height: 300px;
+      max-height: 400px;
       overflow: hidden;
       display: flex;
       flex-direction: column;
@@ -38,6 +38,7 @@ function injectStyles() {
       padding: 12px 16px;
       border-bottom: 1px solid rgba(0, 0, 0, 0.06);
       background: linear-gradient(to bottom, #fafafa, #f8f8f8);
+      flex-shrink: 0;
     }
 
     .ai-reply-title {
@@ -73,6 +74,8 @@ function injectStyles() {
       flex: 1;
       overflow-y: auto;
       padding: 8px;
+      min-height: 0;
+      max-height: 300px;
     }
 
     .ai-reply-item {
@@ -98,6 +101,7 @@ function injectStyles() {
       padding: 8px 16px;
       border-top: 1px solid rgba(0, 0, 0, 0.06);
       background: #f9fafb;
+      flex-shrink: 0;
     }
 
     .ai-reply-hint {
