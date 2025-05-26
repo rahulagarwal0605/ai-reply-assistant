@@ -162,13 +162,6 @@ class SuggestionsPopup {
         // Remove global event listeners if they were added by this instance
     }
 
-    // generateSuggestions method was part of the original content.js logic for this class.
-    // It needs access to `chrome.runtime.sendMessage` and site-specific context extraction.
-    // It's better if the caller (content.js or playground.js) handles the actual generation
-    // and then calls `popup.display(suggestions)` or `popup.updateStatus('error', ...)`,
-    // because the popup itself shouldn't be responsible for API calls or knowing the hostname/scenario.
-    // However, for convenience and encapsulation, the original logic is kept here but made more generic.
-    // The `generateFn` parameter will be a function passed by the caller to actually get suggestions.
     async generateSuggestions(generateFn, insertSuggestionCallback) {
         if (!this.isEnabled || !this.currentInputElement || this.isGenerating) {
             return;
