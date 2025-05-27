@@ -47,11 +47,28 @@ export const LLM_PROVIDERS = {
     name: 'Google AI',
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
     models: [
-      { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
+      // Gemini 2.0 Series
+      { id: 'gemini-2.0-flash-001', name: 'Gemini 2.0 Flash 001' },
       { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
-      { id: 'gemini-2.0-pro', name: 'Gemini 2.0 Pro' },
-      { id: 'gemini-1.5-flash-latest', name: 'Gemini 1.5 Flash' },
-      { id: 'gemini-1.5-pro-latest', name: 'Gemini 1.5 Pro' }
+      { id: 'gemini-2.0-flash-lite-001', name: 'Gemini 2.0 Flash-Lite 001' },
+      { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash-Lite' },
+
+      // Gemini 1.5 Series
+      { id: 'gemini-1.5-pro-002', name: 'Gemini 1.5 Pro 002' },
+      { id: 'gemini-1.5-pro-001', name: 'Gemini 1.5 Pro 001' },
+      { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
+      { id: 'gemini-1.5-flash-8b-001', name: 'Gemini 1.5 Flash-8B 001' },
+      { id: 'gemini-1.5-flash-8b', name: 'Gemini 1.5 Flash-8B' },
+      { id: 'gemini-1.5-flash-002', name: 'Gemini 1.5 Flash 002' },
+      { id: 'gemini-1.5-flash-001', name: 'Gemini 1.5 Flash 001' },
+      { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
+
+      // Gemma Series
+      { id: 'gemma-3-27b-it', name: 'Gemma 3 27B' },
+      { id: 'gemma-3-12b-it', name: 'Gemma 3 12B' },
+      { id: 'gemma-3-4b-it', name: 'Gemma 3 4B' },
+      { id: 'gemma-3-1b-it', name: 'Gemma 3 1B' },
+      { id: 'gemma-3n-e4b-it', name: 'Gemma 3n E4B' }
     ],
     headers: () => ({
       'Content-Type': 'application/json'

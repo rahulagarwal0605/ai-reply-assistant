@@ -120,6 +120,57 @@ const siteConfig = {
             return messages;
         }
     },
+    'www.instagram.com': {
+        insertText: (inputEl, text) => {
+            if (!inputEl || !(inputEl instanceof HTMLElement)) {
+                console.error("Instagram insertText: Invalid inputEl", inputEl);
+                return;
+            }
+
+            inputEl.focus();
+
+            const dataTransfer = new DataTransfer();
+            dataTransfer.setData('text/plain', text);
+
+            const pasteEvent = new ClipboardEvent('paste', {
+                clipboardData: dataTransfer,
+                bubbles: true,
+                cancelable: true,
+                composed: true
+            });
+
+            inputEl.dispatchEvent(pasteEvent);
+        },
+        extractMessages: () => {
+            const messages = [];
+            const messageRowSelector = 'div[aria-label*="Messages in conversation"] div[role="row"]';
+            const messageRows = document.querySelectorAll(messageRowSelector);
+
+            messageRows.forEach(row => {
+                const senderElement = row.querySelector('h6'); // Sender name is in an h6 tag
+                const messageContentElement = row.querySelector('div[id^="mid."]'); // Message content is in a div with id starting "mid."
+
+                if (senderElement && messageContentElement) {
+                    let sender = senderElement.innerText.trim();
+                    // Normalize "You sent" or "You replied to yourself" to "You"
+                    if (sender.toLowerCase().startsWith('you sent') || sender.toLowerCase().startsWith('you replied')) {
+                        sender = 'You';
+                    }
+                    
+                    const text = messageContentElement.innerText.trim();
+                    
+                    if (text) { // Ensure there is message text to add
+                        messages.push({
+                            sender: sender,
+                            text: text,
+                            isOwnMessage: sender === 'You'
+                        });
+                    }
+                }
+            });
+            return messages;
+        }
+    },
     default: {
         insertText: (inputEl, text) => {
             if (!inputEl) return;

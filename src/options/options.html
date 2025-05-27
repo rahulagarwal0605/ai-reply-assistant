@@ -132,6 +132,7 @@
         <div class="form-actions">
           <button class="btn-primary" id="saveStyleBtn">Save Default Style</button>
         </div>
+        <div id="styleAlert" class="alert" style="display: none;"></div>
       </section>
 
       <!-- Advanced Settings -->
@@ -163,6 +164,10 @@
           <label for="debounceDelay">Typing delay (ms)</label>
           <input type="number" id="debounceDelay" class="form-control" min="100" max="2000" step="100" value="500">
         </div>
+        <div class="form-actions">
+            <!-- saveAdvancedBtn will be added here by JS if not present -->
+        </div>
+        <div id="advancedSettingsAlert" class="alert" style="display: none;"></div>
       </section>
 
       <!-- About Section -->

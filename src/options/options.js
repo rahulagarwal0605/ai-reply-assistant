@@ -19,6 +19,7 @@ const elements = {
   defaultToneSelect: document.getElementById('defaultToneSelect'),
   defaultLengthSelect: document.getElementById('defaultLengthSelect'),
   saveStyleBtn: document.getElementById('saveStyleBtn'),
+  styleAlert: document.getElementById('styleAlert'),
   exportBtn: document.getElementById('exportBtn'),
   importBtn: document.getElementById('importBtn'),
   importFile: document.getElementById('importFile'),
@@ -28,6 +29,7 @@ const elements = {
   showOnFocusCheckbox: document.getElementById('showOnFocus'),
   enableShortcutsCheckbox: document.getElementById('enableShortcuts'),
   debounceDelayInput: document.getElementById('debounceDelay'),
+  advancedSettingsAlert: document.getElementById('advancedSettingsAlert'),
   saveAdvancedBtn: document.createElement('button') // Placeholder, will be created if not in HTML
 };
 
@@ -188,22 +190,22 @@ async function saveConfiguration() {
   
   // Validate inputs
   if (!provider) {
-    showAlert('Please select a provider', 'error');
+    displayAlertOnElement(elements.configAlert, 'Please select a provider', 'error');
     return;
   }
   
   if (!apiKey) {
-    showAlert('Please enter your API key', 'error');
+    displayAlertOnElement(elements.configAlert, 'Please enter your API key', 'error');
     return;
   }
   
   if (provider !== 'custom' && LLM_PROVIDERS[provider]?.models.length > 0 && !model) {
-    showAlert('Please select a model for this provider', 'error');
+    displayAlertOnElement(elements.configAlert, 'Please select a model for this provider', 'error');
     return;
   }
   
   if (provider === 'custom' && !customUrl) {
-    showAlert('Please enter the Custom API Base URL', 'error');
+    displayAlertOnElement(elements.configAlert, 'Please enter the Custom API Base URL', 'error');
     return;
   }
   
@@ -230,9 +232,9 @@ async function saveConfiguration() {
     // Update extension icon
     await chrome.runtime.sendMessage({ action: 'updateIcon' });
     
-    showAlert('Configuration saved successfully!', 'success');
+    displayAlertOnElement(elements.configAlert, 'Configuration saved successfully!', 'success');
   } catch (error) {
-    showAlert('Failed to save configuration: ' + error.message, 'error');
+    displayAlertOnElement(elements.configAlert, 'Failed to save configuration: ' + error.message, 'error');
   } finally {
     elements.saveConfigBtn.classList.remove('loading');
     elements.saveConfigBtn.disabled = false;
@@ -247,12 +249,12 @@ async function testConfiguration() {
   const customUrl = elements.customUrlInput.value.trim();
   
   if (!provider || !apiKey || (provider !== 'custom' && LLM_PROVIDERS[provider]?.models.length > 0 && !model)) {
-    showAlert('Please complete the API configuration first (Provider, API Key, Model)', 'warning');
+    displayAlertOnElement(elements.configAlert, 'Please complete the API configuration first (Provider, API Key, Model)', 'warning');
     return;
   }
   
   if (provider === 'custom' && !customUrl) {
-    showAlert('Please enter the Custom API Base URL for testing', 'warning');
+    displayAlertOnElement(elements.configAlert, 'Please enter the Custom API Base URL for testing', 'warning');
     return;
   }
   
@@ -267,12 +269,12 @@ async function testConfiguration() {
     const response = await chrome.runtime.sendMessage(testPayload);
     
     if (response.valid) {
-      showAlert('Connection successful! Your configuration is valid.', 'success');
+      displayAlertOnElement(elements.configAlert, 'Connection successful! Your configuration is valid.', 'success');
     } else {
-      showAlert(`Connection failed: ${response.error}`, 'error');
+      displayAlertOnElement(elements.configAlert, `Connection failed: ${response.error}`, 'error');
     }
   } catch (error) {
-    showAlert(`Test failed: ${error.message}`, 'error');
+    displayAlertOnElement(elements.configAlert, `Test failed: ${error.message}`, 'error');
   } finally {
     elements.testConfigBtn.classList.remove('loading');
     elements.testConfigBtn.disabled = false;
@@ -295,7 +297,7 @@ async function saveDefaultStyle() {
     
     await storage.setConfig(config);
     
-    showAlert('Default style saved!', 'success');
+    displayAlertOnElement(elements.styleAlert, 'Default style saved!', 'success');
     
     // Animate button
     elements.saveStyleBtn.textContent = '✓ Saved';
@@ -303,7 +305,7 @@ async function saveDefaultStyle() {
       elements.saveStyleBtn.textContent = 'Save Default Style';
     }, 2000);
   } catch (error) {
-    showAlert('Failed to save style: ' + error.message, 'error');
+    displayAlertOnElement(elements.styleAlert, 'Failed to save style: ' + error.message, 'error');
   }
 }
 
@@ -317,7 +319,7 @@ async function saveAdvancedSettings() {
   };
 
   if (isNaN(advanced.debounceDelay) || advanced.debounceDelay < 100 || advanced.debounceDelay > 2000) {
-    showAlert('Invalid debounce delay. Must be between 100 and 2000 ms.', 'error');
+    displayAlertOnElement(elements.advancedSettingsAlert, 'Invalid debounce delay. Must be between 100 and 2000 ms.', 'error');
     return;
   }
 
@@ -325,14 +327,14 @@ async function saveAdvancedSettings() {
     const config = await storage.getConfig();
     config.advanced = advanced;
     await storage.setConfig(config);
-    showAlert('Advanced settings saved!', 'success');
+    displayAlertOnElement(elements.advancedSettingsAlert, 'Advanced settings saved!', 'success');
     // Animate button if it's a real button
     if (elements.saveAdvancedBtn && elements.saveAdvancedBtn.textContent) {
         elements.saveAdvancedBtn.textContent = '✓ Saved';
         setTimeout(() => { elements.saveAdvancedBtn.textContent = 'Save Advanced Settings'; }, 2000);
     }
   } catch (error) {
-    showAlert('Failed to save advanced settings: ' + error.message, 'error');
+    displayAlertOnElement(elements.advancedSettingsAlert, 'Failed to save advanced settings: ' + error.message, 'error');
   }
 }
 
@@ -356,7 +358,7 @@ async function exportConfiguration() {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   
-  showAlert('Configuration exported (API key excluded for security)', 'success');
+  displayAlertOnElement(elements.configAlert, 'Configuration exported (API key excluded for security)', 'success');
 }
 
 // Import configuration
@@ -382,9 +384,9 @@ async function importConfiguration(event) {
     await storage.setConfig(mergedConfig);
     await loadConfiguration();
     
-    showAlert('Configuration imported successfully!', 'success');
+    displayAlertOnElement(elements.configAlert, 'Configuration imported successfully!', 'success');
   } catch (error) {
-    showAlert('Failed to import configuration: ' + error.message, 'error');
+    displayAlertOnElement(elements.configAlert, 'Failed to import configuration: ' + error.message, 'error');
   }
   
   // Reset file input
@@ -401,26 +403,33 @@ async function resetSettings() {
     await chrome.storage.local.clear();
     await chrome.runtime.sendMessage({ action: 'updateIcon' });
     
-    showAlert('All settings have been reset', 'success');
+    displayAlertOnElement(elements.configAlert, 'All settings have been reset', 'success');
     
     // Reload page after delay
     setTimeout(() => {
       window.location.reload();
     }, 1500);
   } catch (error) {
-    showAlert('Failed to reset settings: ' + error.message, 'error');
+    displayAlertOnElement(elements.configAlert, 'Failed to reset settings: ' + error.message, 'error');
   }
 }
 
 // Show alert message
-function showAlert(message, type) {
-  elements.configAlert.textContent = message;
-  elements.configAlert.className = `alert ${type}`;
-  elements.configAlert.style.display = 'block';
+function displayAlertOnElement(alertElement, message, type) {
+  if (!alertElement) {
+    console.warn('Alert element not found for message:', message);
+    // Fallback to general config alert if a specific one isn't found,
+    // or handle error appropriately. For now, just log and try configAlert.
+    alertElement = elements.configAlert; 
+    if (!alertElement) return; // If even configAlert is not found, exit.
+  }
+  alertElement.textContent = message;
+  alertElement.className = `alert ${type}`;
+  alertElement.style.display = 'block';
   
   // Auto-hide after 5 seconds
   setTimeout(() => {
-    elements.configAlert.style.display = 'none';
+    alertElement.style.display = 'none';
   }, 5000);
 }
 
